@@ -68,6 +68,7 @@ not change the audio.
 | `--from SECTION\|LABEL\|BAR\|TIME --bars N` | Render an excerpt with original song bar numbers |
 | `--solo part,part` / `--mute part,part` | Select member names, including their sends |
 | `--tail SECONDS` | Maximum release/effect tail; default 12, range 0–120 |
+| `--stems-by part` | Capture post-insert/post-gain stereo part stems in one synthesis pass, with peak/RMS and six-band spectral measurements; no ffmpeg required |
 | `--stems-by group` | Write float stereo group contributions in `stems/`; supports stereo/binaural, rejects ambisonics |
 | `--analysis` | Add float stems, spectrograms, bar/section RMS/peak measurements and an HTML listening page |
 | `--no-analysis` | Disable analysis and report files; overrides `--analysis` |
@@ -87,6 +88,10 @@ The default setup has eleven named synth bindings, role-based bindings and
 sixteen synthesized drum lanes. Pitched parts match their name, then role, then
 the `*` fallback (`init`); `sound NAME` selects a preset explicitly. Presets use numeric native units internally and explicit defaults;
 score controls generally use normalized values, with documented native exceptions.
+Section-keyed controls compile to song-clock value lanes; see [score workflows](WORKFLOW.md#controls-by-section).
+Envelope times additionally accept ms/s and explicit note durations; insert/bus
+stage reports expose measured gain changes. See [instrument parameters](INSTRUMENT_PARAMS.md)
+and [gain staging and EQ](INSERTS.md#drive-compensation-eq-and-stage-measurements).
 The [sound guide](SOUNDS.md) lists the available presets and pluck/choir controls.
 
 - [Instrument parameters](INSTRUMENT_PARAMS.md): oscillators, voice filters, mono/poly
@@ -128,8 +133,9 @@ reuses released voices before held ones; there is no dedicated steal crossfade.
 
 Analysis measures RMS/peak dBFS. It does not measure LUFS, masking, pitch or
 onsets. Insert reverb, audio-driven sidechain compression, mastering and full unit
-arithmetic are not supported. Hardware calibration is not required for software rendering. MIDI commands use separate MIDI setups;
-software sound/effect configuration does not translate to hardware automatically.
+arithmetic are not supported. Hardware calibration is not required for software rendering. Live MIDI and combined-file export use separate MIDI setups; per-part DAW export
+follows the software performance. Software sound/effect configuration does not
+translate to hardware automatically.
 
 ## Score defaults
 
@@ -156,3 +162,52 @@ for sends. Explicitly declared buses remain visible even when silent.
 See [curves, data, per-note paths, ratchets, grains and grouped stems](PRIMITIVES.md),
 [spatial output](SPATIAL.md), and [literal profile 1](../../docs/reference/LITERAL_V1.md).
 `mm help primitives`, `mm help spatial` and `mm help literal` show these guides.
+
+## Single-pass part stems
+
+`npm run mm -- render song.mm --stems-by part` writes 32-bit float stereo WAVs
+under `parts/` and `report.json.partStems` measurements. Complete bus returns
+are written under `bus-returns/` with the same measurements in
+`report.json.busStems`. A return includes its full effect chain, return gain,
+ducking and inputs routed from upstream buses, before master processing.
+Only selected parts
+are captured. Files share the mix origin, frame count and tail length. Stereo
+and binaural output are supported; ambisonic stems are rejected.
+
+The tap follows part inserts and part gain, before shared effect returns and
+master processing. These are dry part contributions, not isolated full mixes;
+they do not include shared reverberation/delay or a share of nonlinear master
+processing, and are not guaranteed to sum to the final mix. Grouped stems keep
+their existing separate-render contribution behavior: each group is rendered
+in isolation, then a residual correction is allocated so stems sum to the mix.
+This correction is not a physical attribution of nonlinear effects. No estimated
+per-part wet shares are produced.
+
+Each part report contains unweighted RMS and peak dBFS (silence floor -200 dBFS),
+and six spectral bands: 0–80, 80–250, 250–1000, 1000–4000, 4000–12000 and
+12000–24000 Hz. Band mean-square energy and relative fractions are estimated
+from 50%-overlapping sine-windowed 2048-point FFTs averaged across stereo
+channels; boundaries have finite frequency resolution. Squared window weights
+sum to one, with padded ends, so transient energy survives block boundaries.
+Band mean squares sum to the time-domain stereo mean square within rounding. RMS is not LUFS.
+Overlap observations list bands where multiple parts each have at least 15%
+of their spectral energy and overall RMS above -80 dBFS. They describe the
+whole excerpt, not simultaneous masking or artistic quality.
+
+Parts plus complete bus returns reconstruct the pre-master stereo mix within
+float rounding; applying master processing separately to stems does not generally
+reconstruct the processed mix. Bus-to-bus sends are already included in each
+receiving return and should not be added a second time.
+
+Capture adds one reusable stereo buffer and streamed float-file storage, not
+one full render per part. Finalization reads each cropped file for measurements.
+`--analysis` remains optional and adds the existing spectrogram/listening page;
+`--no-analysis` suppresses reports but still writes requested stems.
+
+## DAW interchange
+
+`mm pack song.mm --out renders/song-pack` writes matching part MIDI and dry float
+stems, complete bus returns, a draft mix, sound reference and section/import notes.
+`mm export song.mm --midi-dir renders/song-midi` prepares the same software note
+performance without synthesis. See [DAW export](../../docs/guides/EXPORTING_TO_A_DAW.md)
+for timing tolerance, preroll, pitch bend, CC mappings and audio-only limitations.

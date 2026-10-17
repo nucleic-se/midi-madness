@@ -49,8 +49,10 @@ Read-only commands can be used from an editor, script or interactive session.
 | `mm help [topic]` | Documentation (§6), including the source of every prelude definition. | — |
 | `mm schema <command>` | JSON envelope schema labelled for the command; result payloads are generic object/array values. | — |
 | `mm query <song> --from <t> --to <t>` | Windowed realization (docs/reference/LANGUAGE.md §3.4); for checking query invariance. | — |
-| `mm render <song> [--from <section\|bar> --bars N] [--out mix.wav] [--stems-by group] [--no-analysis]` | Software audio rendering; default setup `setups/band/band.setup`. | WAV and minimal reports |
+| `mm render <song> [--from <section\|bar> --bars N] [--out mix.wav] [--stems-by group\|part] [--no-analysis]` | Software audio rendering; default setup `setups/band/band.setup`. | WAV and minimal reports |
 | `mm export <song> [--setup <setup>] --midi out.mid` | MIDI file through instrument definitions and a setup. | MIDI file |
+| `mm export <song> --midi-dir directory [--setup software.setup] [--cc] [--bend-range N]` | Hardware-free per-part MIDI from the software performance; representation-loss report. | MIDI directory |
+| `mm pack <song> --out directory [--setup software.setup] [--tail seconds] [--cc] [--bend-range N]` | Matching dry part stems, complete bus returns, MIDI and draft mix; validates file alignment. See [DAW export](../guides/EXPORTING_TO_A_DAW.md). | Remix directory |
 | `mm play <song> --setup <setup> [--from "bar N" \| --bars A..B] [--loop] [--clock send\|off]` | Live MIDI playback, controller chase and range looping. | — |
 | `mm ports` | List physical/virtual MIDI outputs; no messages sent. | — |
 | `mm panic --setup <setup>` | Explicit note-offs and CC123/120 on the setup channels. | — |
@@ -82,6 +84,9 @@ The software renderer defaults to stereo 48 kHz, 24-bit audio at
 32-bit float ACN/SN3D. The event sidecar is written even with `--no-analysis`;
 it contains exact backend sample timing, source events, spatial lanes and
 recorded control envelopes. See [spatial output](../../packages/render/SPATIAL.md).
+`--stems-by part` captures post-insert/post-gain part stems in one synthesis pass
+and adds peak/RMS and six-band energy to `report.json.partStems`, without ffmpeg.
+Shared returns and master processing are excluded; see [part stem semantics](../../packages/render/README.md#single-pass-part-stems).
 `--stems-by group` writes stereo float group contributions independently of
 `--analysis`; ambisonic grouped stems are unsupported. See
 [grouped stems](../../packages/render/PRIMITIVES.md#grouped-stems). `--setup` chooses a

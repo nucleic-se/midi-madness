@@ -85,6 +85,32 @@ per list, e.g. `delay.time = per 4 bars: 1/16, 3/32, 1/8` or
 Other values retain the field's existing normalized/native convention; full unit
 arithmetic is not supported.
 
+## Controls by section
+
+```text
+bus echo
+  delay.feedback = by section: theme 0.78, peak 0.68, * 0.73 smooth 1 bar
+
+part lead
+  insert = eq as body type bell, frequency 1kHz
+  insert.body.gain = by section: theme -3dB, peak 0dB, * -6dB
+  attack = by section: theme 10ms, * note(1/8)
+```
+
+Targets follow actual form sections and labels rather than list indexes. Every
+section needs a matching name or `*`. A label overrides its original section
+name; duplicate/unknown selectors are rejected. Targets are constant scalar
+expressions, with the field's documented native/normalized conventions.
+
+Smoothing starts at the section boundary; it does not anticipate the next section
+as a hand-written `per ... smooth:` list can. An interrupted transition continues
+from its current value. The first value applies immediately and the final value
+holds. Section controls follow song time regardless of part or bus restarts.
+They compile into the same value-lane machinery as explicit `per song`; ordinary
+`per` keeps its existing clock. See the
+[language semantics](../../docs/reference/LANGUAGE.md#section-keyed-parameter-lanes)
+for repeated sections, limits and an explicit-lane equivalent.
+
 ## External lanes and continuous automation
 
 Use [JSON/CSV data lanes](PRIMITIVES.md#data-lanes) when another tool authors
@@ -94,7 +120,8 @@ Include and lane edits change the score provenance hash. Data lanes loop and
 interpolate like `per`; they do not import timed note events.
 
 The top-level `listener` block and bus automation honour `restart` just like
-part automation. Use `restart never` for one continuous song-long lane instead
+part automation. Explicit `per song` and `by section` lanes keep song time
+regardless of those restarts. For other lane expressions, use `restart never` for one continuous song-long lane instead
 of resetting it at every section. Listener fields and axes are documented in
 [spatial audio](SPATIAL.md#world-space-and-the-listener).
 
@@ -122,3 +149,12 @@ tool itself.
 The listening fixture `tests/fixtures/render/workflow.mm` demonstrates generated
 plucked voices, stepped timbre/pick position, a morphing choir, and changing rim
 rates in eight bars. Render it with the usual `mm render` command.
+
+## Reuse a score with different sounds
+
+A derived `.mm` file can `include score "base.mm"` and use `restyle part`,
+`restyle group`, `restyle fx` and `restyle bus` blocks to replace sound settings
+while inheriting the notes and form. Render the derived file with the ordinary
+`mm render` command; `mm expand` shows its resolved score. See
+[Sound restyling](../../docs/reference/LANGUAGE.md#sound-restyling) for selection,
+precedence, allowed fields and template-target limitations.

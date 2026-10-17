@@ -114,6 +114,7 @@ export function renderDrum(
   out: AudioBuses,
   processing: {
     inserts?: Stage[];
+    measureFrom?: number;
     cuts?: number[];
     offset?: number;
     space?: SpatialSettings;
@@ -123,7 +124,13 @@ export function renderDrum(
     envelopes?: DrumEnvelopeRecord[];
   } = {},
 ): MemberReport {
-  const chain = createInsertChain(processing.inserts ?? [], sr, seed, processing.offset ?? 0);
+  const chain = createInsertChain(
+    processing.inserts ?? [],
+    sr,
+    seed,
+    processing.offset ?? 0,
+    processing.measureFrom ?? 0,
+  );
   let cutCursor = 0;
   const kind = lanes.indexOf(lane);
   if (kind < 0) throw new RangeError(`Unknown drum lane ${lane}; choose ${lanes.join(', ')}`);
@@ -496,6 +503,10 @@ export function renderDrum(
       right = preRight * listenerLevel;
     const value = (left + right) * 0.5;
     report.peak = Math.max(report.peak, Math.abs(left), Math.abs(right));
+    if (out.partCapture) {
+      out.partCapture.left[i] = left;
+      out.partCapture.right[i] = right;
+    }
     out.left[i] += left;
     out.right[i] += right;
     if (routes.length) {
@@ -507,5 +518,6 @@ export function renderDrum(
     age += 1 / sr;
   }
   if (record) close(out.left.length, current());
+  report.insertStages = chain.measurements();
   return report;
 }

@@ -57,6 +57,7 @@ const fields = new Set([
 ]);
 class ParseFailure extends Error {}
 class Parser {
+  hasSectionLanes = false;
   readonly tokens: Token[];
   readonly diagnostics: Diagnostic[];
   readonly source: string;
@@ -514,7 +515,26 @@ class Parser {
   }
   primary(stops: Set<string>): Expression {
     const token = this.token;
+    if (this.match('by')) {
+      this.hasSectionLanes = true;
+      this.require('section');
+      this.require(':');
+      const args: Argument[] = [{ kind: 'clause', tokens: [], span: token.span }];
+      do {
+        const key = this.match('*') ? this.tokens[this.position - 1] : this.name();
+        args.push({ kind: 'clause', tokens: [key.text], span: key.span });
+        args.push(this.sequence(new Set([...stops, ',', ')', 'smooth', 'NL'])));
+      } while (this.match(','));
+      if (this.match('smooth')) args[0] = this.sequence(new Set([...stops, ')', 'NL']));
+      return {
+        kind: 'call',
+        name: '__sections',
+        args,
+        span: combineSpan(token.span, this.tokens[this.position - 1].span),
+      };
+    }
     if (this.match('per')) {
+      const songClock = this.match('song');
       let duration: Sequence;
       if (['bar', 'bars', 'beat', 'beats'].includes(this.token.text)) {
         const unit = this.take();
@@ -541,6 +561,7 @@ class Parser {
       return {
         kind: 'call',
         name: '__per',
+        ...(songClock ? { clock: 'song' as const } : {}),
         args,
         span: combineSpan(token.span, this.tokens[this.position - 1].span),
       };
@@ -862,12 +883,13 @@ class Parser {
 export function parse(
   source: string,
   context?: TemplateExpansion,
-): { ast: File; diagnostics: Diagnostic[] } {
+): { ast: File; diagnostics: Diagnostic[]; hasSectionLanes?: true } {
   const expansion = context ?? expandTemplates(source);
   const parser = new Parser(context ? source : expansion.source);
   const ast = parser.file();
   restoreTemplateOrigins(ast, parser.diagnostics, expansion);
   return {
+    ...(parser.hasSectionLanes ? { hasSectionLanes: true as const } : {}),
     ast,
     diagnostics: [...parser.diagnostics, ...expansion.diagnostics].sort(
       (a, b) => a.span.line - b.span.line || a.span.col - b.span.col,

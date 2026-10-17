@@ -57,6 +57,35 @@ report unsupported oscillator-2, FM, sync, fold and filter-FM controls as ignore
 `detune` uses a normalized 0–50-cent mapping; `unison.spread` uses native
 cents. If both are assigned, the most recently applied control wins.
 
+## Amplitude and filter envelope times
+
+`attack`, `decay`, `release` and their `filter.` equivalents accept explicit
+`ms`/`s` literals, and `note(1/8)` durations at the song tempo. Dotted and triplet
+forms work: `note(1/8.)`, `note(1/8t)`. The valid range is 1ms–5.001s.
+Unitless values and arithmetic remain normalized 0–1, using
+`seconds = 0.001 + 5 × value³`; `attack = 1/8` therefore retains its existing
+normalized meaning. Native durations invert that mapping before compilation.
+The song's default tempo is 100 BPM. An authored `define note(...)` function
+keeps precedence over the convenience spelling; use ms/s when it is present.
+
+```text
+attack = 10ms
+decay = note(1/8)
+release = across section: ramp 50ms..500ms
+filter.decay = per 1 bar: 120ms, note(1/8)
+```
+
+Native literals work in fixed assignments, shape endpoints, per-value lanes
+and existing supported filter-envelope locks/path endpoints. Shapes interpolate normalized
+values, so a linear ramp is not linear in seconds. Native-unit arithmetic and
+unit-bearing named signals are unsupported. `exp`/`log` retain the requirement
+for positive normalized endpoints; 1ms maps to zero, so use `ramp` for that
+endpoint. These synth controls do not add new drum envelope parameters or new
+amplitude-lock capabilities.
+
+`modenv.attack/decay/release` retain their native-seconds unitless meaning and
+1ms–10s range; they additionally accept the same explicit note durations.
+
 ## LFOs
 
 The primary LFO supports:
@@ -118,7 +147,8 @@ modenv.cutoff = 2oct
 to that note's voice, including its release. They do not alter overlapping
 voices or the part's automation. Locks override member controls for the life of
 that voice; unlocked voices continue following member automation. Filter ADSR
-locks keep their existing normalized mapping; modenv ADSR locks use native seconds.
+locks keep their existing unitless normalized mapping and additionally accept
+explicit ms/s/note times; modenv ADSR locks use native seconds.
 
 ```text
 plays notes | D4{lfo.hz 7, lfo.pitch 120, lfo.trigger 1, length 1/1} F4{lfo.hz 11, lfo.cutoff 2, envamount 0.8, length 1/1} . . |

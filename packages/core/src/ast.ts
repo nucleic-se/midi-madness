@@ -17,7 +17,7 @@ export type Expression = (
   | { kind: 'binary'; operator: string; left: Expression; right: Expression; span: Span }
   | { kind: 'range'; from?: Expression; to?: Expression; span: Span }
   | { kind: 'span'; value: Expression; unit: string; span: Span }
-  | { kind: 'call'; name: string; args: Argument[]; span: Span }
+  | { kind: 'call'; name: string; args: Argument[]; span: Span; clock?: 'song' }
   | { kind: 'operation'; receiver: Expression; name: string; args: Argument[]; span: Span }
   | { kind: 'group'; value: Sequence; span: Span }
   | { kind: 'label'; value: Expression; name: string; span: Span }

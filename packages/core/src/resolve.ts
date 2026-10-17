@@ -290,7 +290,11 @@ export function resolve(ast: File): Resolution {
       return {
         ...e,
         ...(e.kind === 'operation' ? { receiver: norm(e.receiver, env, stack) } : {}),
-        args: e.args.map((a) => normArgument(a, env, stack)),
+        args: e.args.map((a, i) =>
+          e.kind === 'call' && e.name === '__sections' && i % 2 === 1
+            ? a
+            : normArgument(a, env, stack),
+        ),
       };
     }
     if (e.kind === 'binary')
@@ -563,7 +567,7 @@ export function resolve(ast: File): Resolution {
         if (
           expected === 'number' &&
           symbol.keyword === 'signal' &&
-          JSON.stringify(normalizedDefinitions.get(e.name)).includes('"__per"')
+          /"__(?:per|sections)"/.test(JSON.stringify(normalizedDefinitions.get(e.name)))
         )
           return 'number';
         return bindingTypes[symbol.keyword];
@@ -657,6 +661,15 @@ export function resolve(ast: File): Resolution {
       return result;
     }
     if (e.kind === 'call') {
+      if (e.name === '__sections') {
+        if (e.args[0]?.kind !== 'clause') argumentType(e.args[0], env, 'span');
+        for (let i = 2; i < e.args.length; i += 2) {
+          const type = argumentType(e.args[i], env);
+          if (!scalar.has(type) && type !== 'values' && type !== 'span' && type !== 'unknown')
+            error('R003', 'Section lane values require constant scalars', e.args[i].span);
+        }
+        return expected === 'number' ? 'number' : 'values';
+      }
       if (e.name === '__per') {
         if (e.args[0]) argumentType(e.args[0], env, 'span');
         e.args.slice(2).forEach((a) => {

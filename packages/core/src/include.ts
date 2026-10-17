@@ -2,6 +2,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { mapDataPaths } from './data.ts';
+import { applyRestyles, RestyleError } from './restyle.ts';
 
 /** One site in an include chain: an absolute file and a 1-based line. */
 export type IncludeSite = { file: string; line: number };
@@ -42,7 +43,7 @@ export class IncludeError extends Error {
 }
 
 const sha256 = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
-const includeLine = /^([ \t]*)include\s+("(?:[^"\\]|\\.)*")\s*(?:\/\/.*)?$/;
+const includeLine = /^([ \t]*)include\s+(score\s+)?("(?:[^"\\]|\\.)*")\s*(?:\/\/.*)?$/;
 const header = /^\s*mm\s+\d+\s*(?:\/\/.*)?$/;
 const songBlock = /^\s*song(?:\s|$)/;
 const posix = (path: string) => path.split(sep).join('/');
@@ -97,23 +98,82 @@ export function loadScore(file: string, options: LoadOptions = {}): LoadedScore 
     indent: string,
     from: IncludeSite[],
     stack: string[],
+    whole = false,
   ) => {
+    const start = lines.length;
+    const structural = /^\s*(?:include\s+score|restyle)\b/m.test(content);
+    const active =
+      structural || (whole && path !== main)
+        ? content
+            .split(/\r?\n/)
+            .map((line, index) => ({ text: line.replace(/\/\/.*$/, '').trim(), raw: line, index }))
+            .filter((r) => r.text)
+        : [];
+    const layer = active.some((r) => /^include\s+score\b/.test(r.text));
+    if (whole && (path !== main || layer)) {
+      if (active[0]?.text !== 'mm 1' || active.filter((r) => header.test(r.raw)).length !== 1)
+        throw new IncludeError(
+          'A complete score must have exactly one mm 1 header at its start',
+          { file: path, line: (active[0]?.index ?? 0) + 1 },
+          from,
+        );
+    }
+    if (layer) {
+      let bases = 0;
+      let inPatch = false;
+      for (const row of active) {
+        if (/^\s/.test(row.raw)) {
+          if (!inPatch)
+            throw new IncludeError(
+              'Indented layer fields must belong to a restyle block',
+              { file: path, line: row.index + 1 },
+              from,
+            );
+          continue;
+        }
+        if (row.text === 'mm 1') continue;
+        if (/^include\s+score\b/.test(row.text) && !bases) {
+          bases++;
+          continue;
+        }
+        if (/^restyle\b/.test(row.text) && bases === 1) {
+          inPatch = true;
+          continue;
+        }
+        throw new IncludeError(
+          'A restyle layer needs one include score before its restyle blocks; other top-level declarations are not allowed',
+          { file: path, line: row.index + 1 },
+          from,
+        );
+      }
+    } else {
+      const patch = active.find((r) => /^restyle\b/.test(r.text));
+      if (patch)
+        throw new IncludeError(
+          'restyle requires a layer with include score',
+          { file: path, line: patch.index + 1 },
+          from,
+        );
+    }
     const parts = content.split(/\r?\n/);
     if (parts.length > 1 && parts.at(-1) === '') parts.pop();
     parts.forEach((line, index) => {
       const site = { file: path, line: index + 1 };
-      if (path !== main && (header.test(line) || songBlock.test(line)))
+      if (!whole && (header.test(line) || songBlock.test(line)))
         throw new IncludeError(
           `Include fragment ${relative(dirname(main), path)} must not contain ${header.test(line) ? 'the mm header' : 'a song block'}`,
           site,
           from,
         );
+      if (whole && path !== main && header.test(line)) return;
       const include = line.match(includeLine);
       if (include) {
         includes = true;
+        if (include[2] && (include[1] || !whole))
+          throw new IncludeError('include score must be a top-level layer declaration', site, from);
         let target: string;
         try {
-          target = resolve(dirname(path), JSON.parse(include[2]) as string);
+          target = resolve(dirname(path), JSON.parse(include[3]) as string);
         } catch {
           throw new IncludeError('Invalid quoted include path', site, from);
         }
@@ -139,6 +199,7 @@ export function loadScore(file: string, options: LoadOptions = {}): LoadedScore 
           indent + include[1],
           [site, ...from],
           [...stack, target],
+          !!include[2],
         );
         return;
       }
@@ -154,8 +215,25 @@ export function loadScore(file: string, options: LoadOptions = {}): LoadedScore 
       lines.push(line.trim() ? indent + line : '');
       lineMap.push({ file: path, line: index + 1, indent: indent.length, from });
     });
+    if (layer) {
+      try {
+        const patched = applyRestyles(
+          lines.slice(start).map((text, i) => ({ text, origin: lineMap[start + i] })),
+        );
+        lines.length = start;
+        lineMap.length = start;
+        for (const row of patched) {
+          lines.push(row.text);
+          lineMap.push(row.origin);
+        }
+      } catch (error) {
+        if (error instanceof RestyleError)
+          throw new IncludeError(error.message, error.origin, error.origin.from);
+        throw error;
+      }
+    }
   };
-  expand(main, raw, '', [], [main]);
+  expand(main, raw, '', [], [main], true);
   // Dependency-free scores are passed through byte for byte.
   const source = includes || rewritten ? lines.join('\n') + (raw.endsWith('\n') ? '\n' : '') : raw;
   source.split(/\r?\n/).forEach((line, index) =>

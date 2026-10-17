@@ -275,6 +275,7 @@ export function realizeParts(
           const result = expandSequence(sequence, notes ? 'notes' : 'hits', {
             meter: structure.settings.meter,
             materialTime: at.sub(reset),
+            absoluteMaterialTime: at,
             section: section!.extent,
             phrase: cc.phraseExtent,
             cycle,
@@ -339,7 +340,7 @@ export function realizeParts(
         }
         const first = expand(reset, 1);
         if (!first || first.extent.compare(zero) <= 0) continue;
-        const rateSteps: R[] = [];
+        const rateSteps: { step: R; origin: R }[] = [];
         function rateWalk(value: unknown) {
           if (!value || typeof value !== 'object') return;
           if (
@@ -349,10 +350,11 @@ export function realizeParts(
             value.name === '__per'
           ) {
             try {
-              rateSteps.push(
-                perData(value as Extract<Expression, { kind: 'call' }>, structure.settings.meter)
-                  .step,
-              );
+              const call = value as Extract<Expression, { kind: 'call' }>;
+              rateSteps.push({
+                step: perData(call, structure.settings.meter).step,
+                origin: call.clock === 'song' ? zero : reset,
+              });
             } catch {
               /* Expansion reports the invalid expression. */
             }
@@ -377,9 +379,9 @@ export function realizeParts(
           const value = cycle === 1 ? first : expand(at, cycle);
           if (!value) break;
           advance = value.extent;
-          for (const step of rateSteps) {
-            const remaining = reset
-              .add(step.mul(new R(at.sub(reset).div(step).floor() + 1n)))
+          for (const { step, origin } of rateSteps) {
+            const remaining = origin
+              .add(step.mul(new R(at.sub(origin).div(step).floor() + 1n)))
               .sub(at);
             if (remaining.compare(advance) < 0) advance = remaining;
           }

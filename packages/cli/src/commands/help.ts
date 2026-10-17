@@ -33,9 +33,10 @@ export function help(topic = '') {
       'template NAME(n: number, note: notes):\n  plays notes | note . note . |\n\nfor n, note in [0 G3, 1 A3, 2 B3]:\n  part bell-{n} = NAME(n, note)\n\nLoad-time expansion produces ordinary parts with template provenance. Use literal row lists; no runtime loops.',
     per: 'cutoff = per 2 bars: 0.2, 0.8\ncutoff = per 2 bars smooth: 0.2, 0.8\nplays hits beat.fast(per 1 bar: 1, 2, 1.5, 1)\n\nConstant scalar values hold for the given span and loop from the use reset. Smooth interpolates, including the wrap. Pattern rates are sampled at cycle starts and restart at step boundaries.',
     render:
-      'mm render song.mm [--setup setups/band/band.setup] [--from section|bar N --bars N] [--solo part,part] [--mute part,part] [--out mix.wav] [--tail seconds] [--stems-by group] [--analysis] [--no-analysis]\nWrites a 48kHz draft WAV (stereo by default; optional binaural or first-order ambisonic) and minimal reports to renders/<song>/. --analysis adds stems, spectrograms and per-bar RMS/peak measurements. Software only; no MIDI port required.',
+      'mm render song.mm [--setup setups/band/band.setup] [--from section|bar N --bars N] [--solo part,part] [--mute part,part] [--out mix.wav] [--tail seconds] [--stems-by group|part] [--analysis] [--no-analysis]\nWrites a 48kHz draft WAV (stereo by default; optional binaural or first-order ambisonic) and minimal reports to renders/<song>/. --stems-by part captures dry parts and complete bus returns with level/band measurements in one synthesis pass. --analysis adds stems, spectrograms and per-bar RMS/peak measurements. Software only; no MIDI port required.',
+    pack: 'mm pack song.mm --out pack-directory [--setup software.setup] [--tail seconds] [--cc] [--bend-range semitones]\nWrites aligned dry stems, bus returns, MIDI, draft mix and import notes.',
     export:
-      'mm export song.mm [--setup studio.setup] --midi song.mid\nWithout setup: notes only, pitched channels skip 10, GM drums on 10.',
+      'mm export song.mm [--setup studio.setup] --midi song.mid\nWithout setup: notes only, pitched channels skip 10, GM drums on 10.\nmm export song.mm --midi-dir pack/midi [--cc] [--bend-range semitones]\nHardware-free per-part MIDI uses the software performance; --setup here selects an optional software setup. Reports list representation losses.',
     ports: 'mm ports [--json]\nLists exact MIDI output names without opening them.',
     play: 'mm play song.mm --setup studio.setup [--from bar N | --bars A..B] [--loop] [--clock send|off]\nPresets and overrides run once at startup. Range entry chases controllers, skips carry-in notes. Ctrl-C stops and exits 130.',
     panic:
@@ -83,7 +84,7 @@ export function help(topic = '') {
     return {
       topic: 'index',
       topics: [...topics, ...Object.keys(midiHelp)],
-      text: `mm <command> <song.mm> [--json]\n\nCommands: ${topics.slice(0, 12).join(', ')}, render, export, ports, play, panic\n\nHelp also accepts instruments, setup, language keywords, operations, fields, diagnostic codes and prelude function names.`,
+      text: `mm <command> <song.mm> [--json]\n\nCommands: ${topics.slice(0, 12).join(', ')}, render, export, pack, ports, play, panic\n\nHelp also accepts instruments, setup, language keywords, operations, fields, diagnostic codes and prelude function names.`,
     };
   const definitions = PRELUDE_SOURCE.split(/(?=^define )/m),
     prelude = definitions.find((d) => d.startsWith(`define ${topic}(`));

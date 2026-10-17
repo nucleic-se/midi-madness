@@ -56,6 +56,7 @@ const commands = [
   'format',
   'export',
   'render',
+  'pack',
   'ports',
   'play',
   'panic',
@@ -70,6 +71,8 @@ const valueFlags = new Set([
   '--since',
   '--setup',
   '--midi',
+  '--midi-dir',
+  '--bend-range',
   '--clock',
   '--out',
   '--tail',
@@ -88,6 +91,7 @@ const allowed = new Set([
   '--analysis',
   '--harmony',
   '--positions',
+  '--cc',
 ]);
 const commandFlags: Record<string, readonly string[]> = {
   check: ['--setup'],
@@ -103,7 +107,8 @@ const commandFlags: Record<string, readonly string[]> = {
   accept: ['--setup'],
   diff: ['--setup', '--since'],
   format: ['--setup'],
-  export: ['--setup', '--midi'],
+  export: ['--setup', '--midi', '--midi-dir', '--cc', '--bend-range'],
+  pack: ['--setup', '--out', '--tail', '--cc', '--bend-range'],
   render: [
     '--setup',
     '--from',
@@ -141,15 +146,15 @@ function validateOptions() {
     throw new RangeError('--to supports section');
   if (option('--clock') && !['send', 'off'].includes(option('--clock')!))
     throw new RangeError('--clock must be send or off');
-  if (command === 'render') {
+  if (['render', 'pack'].includes(command)) {
     const tail = option('--tail');
     if (
       tail !== undefined &&
       (!Number.isFinite(Number(tail)) || Number(tail) < 0 || Number(tail) > 120)
     )
       throw new RangeError('--tail must be 0..120 seconds');
-    if (option('--stems-by') && option('--stems-by') !== 'group')
-      throw new RangeError('--stems-by supports group');
+    if (option('--stems-by') && !['group', 'part'].includes(option('--stems-by')!))
+      throw new RangeError('--stems-by supports group or part');
     if (option('--bars') && !/^[1-9]\d*$/.test(option('--bars')!))
       throw new RangeError('--bars must be a positive integer');
   }
@@ -436,16 +441,66 @@ async function run() {
     );
     return;
   }
+  if (command === 'pack' || (command === 'export' && option('--midi-dir'))) {
+    if (option('--midi')) throw new RangeError('--midi and --midi-dir are mutually exclusive');
+    const bendRange =
+      option('--bend-range') === undefined ? undefined : Number(option('--bend-range'));
+    if (
+      bendRange !== undefined &&
+      (!Number.isInteger(bendRange) || bendRange < 1 || bendRange > 96)
+    )
+      throw new RangeError('--bend-range must be an integer 1..96 semitones');
+    const { prepareMidiPerformance, exportPartMidi, midiStemPrefix } =
+      await import('../../render/src/daw-midi.ts');
+    if (command === 'pack') {
+      if (!option('--out'))
+        throw new RangeError('Usage: mm pack song.mm --out pack-directory [--cc]');
+      const { packSong } = await import('../../render/src/pack.ts');
+      const packed = packSong(loadedScore.source, file, {
+        score: loadedScore,
+        out: option('--out')!,
+        setup: option('--setup'),
+        tail: option('--tail') === undefined ? undefined : Number(option('--tail')),
+        cc: args.includes('--cc'),
+        bendRange,
+        progress: !json && !quiet ? (text) => process.stderr.write(`${text}\n`) : undefined,
+      });
+      output(
+        { packed: true, ...packed },
+        [],
+        '',
+        `Pack: ${packed.directory} (${packed.parts} parts)`,
+      );
+    } else {
+      const { performance, diagnostics } = prepareMidiPerformance(loadedScore.source, file, {
+        setup: option('--setup'),
+      });
+      const exported = exportPartMidi(performance, option('--midi-dir')!, {
+        cc: args.includes('--cc'),
+        bendRange,
+        prefix: midiStemPrefix(file),
+      });
+      output(
+        { exported: true, directory: option('--midi-dir'), ...exported },
+        diagnostics,
+        '',
+        `Exported ${exported.files.length} part MIDI files to ${option('--midi-dir')}`,
+      );
+    }
+    return;
+  }
+  if (command === 'export' && (args.includes('--cc') || option('--bend-range')))
+    throw new RangeError('--cc and --bend-range require --midi-dir');
   if (command === 'render') {
     const { renderSong } = await import('../../render/src/render.ts');
     const tail = option('--tail') === undefined ? undefined : Number(option('--tail'));
     if (tail !== undefined && (!Number.isFinite(tail) || tail < 0 || tail > 120))
       throw new RangeError('--tail must be 0..120 seconds');
-    if (option('--stems-by') && option('--stems-by') !== 'group')
-      throw new RangeError('--stems-by supports group');
+    if (option('--stems-by') && !['group', 'part'].includes(option('--stems-by')!))
+      throw new RangeError('--stems-by supports group or part');
     const rendered = renderSong(loadedScore.source, file, {
       score: loadedScore,
-      stemsBy: option('--stems-by') as 'group' | undefined,
+      stemsBy: option('--stems-by') as 'group' | 'part' | undefined,
       setup: option('--setup'),
       out: option('--out'),
       from: option('--from'),

@@ -1,4 +1,4 @@
-import { mapShapeEndpoints } from './automation-literals.ts';
+import { mapShapeEndpoints, mapSectionValues } from './automation-literals.ts';
 import type { Span } from '../../core/src/diag.ts';
 import { ScoreError } from '../../core/src/score-error.ts';
 import { scoreLine } from '../../core/src/score-error.ts';
@@ -26,7 +26,7 @@ export function settingValue(type: EffectType, field: string, value: string, bpm
       (Number(m[3]) + 1) * 12;
     n = 440 * 2 ** ((note - 69) / 12);
   } else {
-    const m = value.match(/^([-+\d.]+)(%|ms|s|Hz|kHz|oct)?$/);
+    const m = value.match(/^([-+\d.]+)(%|ms|s|Hz|kHz|oct|dB)?$/);
     if (!m) throw new RangeError(`Invalid ${type}.${field}: ${value}`);
     n = Number(m[1]) * (m[2] === 'kHz' ? 1000 : m[2] === 'ms' ? 0.001 : m[2] === '%' ? 0.01 : 1);
     if (
@@ -35,6 +35,7 @@ export function settingValue(type: EffectType, field: string, value: string, bpm
       !(
         ('unit' in d && d.unit === 'time' && ['ms', 's'].includes(m[2])) ||
         ('unit' in d && d.unit === 'hz' && ['Hz', 'kHz'].includes(m[2])) ||
+        ('unit' in d && d.unit === 'db' && m[2] === 'dB') ||
         (field === 'depth' && ['autofilter', 'phaser'].includes(type) && m[2] === 'oct')
       )
     )
@@ -112,6 +113,8 @@ export function parseInsertStage(text: string, bpm: number, insert = true): Stag
 }
 export function insertLiteral(stage: Stage, field: string, text: string, bpm: number): string {
   if (!(field in stage.params)) throw new RangeError(`Unknown ${stage.id}.${field}`);
+  const sections = mapSectionValues(text, (value) => insertLiteral(stage, field, value, bpm));
+  if (sections !== undefined) return sections;
   const shape = mapShapeEndpoints(text, (literal) =>
     /^[-+]?\d+(?:\.\d+)?$/.test(literal) ? literal : insertLiteral(stage, field, literal, bpm),
   );
@@ -126,7 +129,7 @@ export function insertLiteral(stage: Stage, field: string, text: string, bpm: nu
   const choices = effectParams[stage.type][field]?.choices;
   if (
     choices?.includes(value) ||
-    /^[-+]?\d+(?:\.\d+)?(?:ms|s|Hz|kHz|oct)$/.test(value) ||
+    /^[-+]?\d+(?:\.\d+)?(?:ms|s|Hz|kHz|oct|dB)$/.test(value) ||
     /^\d+\/\d+(?:\.|t)?$/.test(value) ||
     /^[A-G][#b]?-?\d+$/.test(value) ||
     (['bits', 'voices', 'stages'].includes(field) && /^\d+$/.test(value))

@@ -262,11 +262,17 @@ export function prepareSoftwareScore(source: string, filename?: string) {
       const p = effectParams[type][field];
       if (!p?.unit) return [0, 1];
       const display = (n: number) =>
-        p.unit === 'time' ? (n < 1 ? `${n * 1000} ms` : `${n} s`) : `${n} Hz`;
+        p.unit === 'time'
+          ? n < 1
+            ? `${n * 1000} ms`
+            : `${n} s`
+          : p.unit === 'db'
+            ? `${n} dB`
+            : `${n} Hz`;
       return [
         0,
         1,
-        `${type}.${field} reads 0..1, where 0 = ${display(p.min)} and 1 = ${display(p.max)}; write ${p.unit === 'time' ? '6s for seconds' : '800Hz for hertz'}; shape endpoints accept the same native literals`,
+        `${type}.${field} reads 0..1, where 0 = ${display(p.min)} and 1 = ${display(p.max)}; write ${p.unit === 'time' ? '6s for seconds' : p.unit === 'db' ? '6dB for gain' : '800Hz for hertz'}; shape endpoints accept the same native literals`,
       ];
     }
     for (const [part, stages] of Object.entries(inserted.inserts))

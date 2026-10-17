@@ -1,6 +1,11 @@
 # Using MIDI
 
-MIDI output sends notes and controls to instruments. It does not carry the software renderer's audio, presets or effect buses. Per-note paths and grain rendering are not reproduced over MIDI; the backend reports a warning for those events.
+MIDI output sends notes and controls to instruments. It does not carry the software renderer's audio, presets or effect buses.
+
+For matching audio stems and editable per-part MIDI from the software performance,
+use [Exporting to a DAW](EXPORTING_TO_A_DAW.md). The combined-file and live MIDI
+backend described below does not reproduce per-note paths or grain rendering; it
+reports warnings for those events.
 
 ## Export a MIDI file
 

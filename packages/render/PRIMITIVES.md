@@ -70,9 +70,10 @@ Ordinary normalized domains and native parameter units still apply. For example,
 `pitch 1st -> 1oct over 1/4` is a cents-offset pitch path. Incompatible units diagnose.
 Geometric pitch endpoints must remain positive after resolving an absolute target
 against the starting note. Unsupported
-renderer paths fail explicitly. These paths require software rendering; MIDI
-export warns because ordinary MIDI channels cannot reproduce independent bends
-on overlapping notes.
+renderer paths fail explicitly. Software rendering preserves these paths. Combined MIDI export warns about them.
+Per-part DAW export writes supported pitch/cents paths as channel bend and reports
+conflicting overlapping bends and omitted non-pitch paths; see
+[DAW export](../../docs/guides/EXPORTING_TO_A_DAW.md).
 
 ## Ratchets
 
@@ -115,8 +116,10 @@ may extend beyond its slot; song/excerpt boundaries still truncate scheduling.
 Grain parts use a pool of 256 polyphonic voices regardless of a mono source
 preset. Excess simultaneous grains fail rather than silently stealing grains.
 Grains currently require a pitched part. Counts and size determine render cost;
-2,000 grains over eight bars are a normal draft workload. They require the
-software renderer; MIDI export warns.
+2,000 grains over eight bars are a normal draft workload. Their windowed sound requires the
+software renderer. Combined MIDI export warns; per-part DAW export writes the
+expanded short notes and reports the audio-only window, timbre and expression
+limitations.
 
 ## Grouped stems
 

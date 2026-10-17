@@ -10,6 +10,7 @@ All `npm run mm -- ...` commands below run from the repository root after `npm c
 |---|---|
 | Write notes, drums and sections | [Writing a song](guides/WRITING_A_SONG.md) |
 | Make a WAV, excerpt, stem or analysis page | [Rendering audio](guides/RENDERING_AUDIO.md) |
+| Export matching stems and MIDI for a DAW | [Exporting to a DAW](guides/EXPORTING_TO_A_DAW.md) |
 | Export a MIDI file or connect a device | [Using MIDI](guides/USING_MIDI.md) |
 | Find errors, inspect events and compare revisions | [Inspecting scores](guides/INSPECTING_SCORES.md) |
 | Try a complete arrangement | [Examples](../examples/README.md) |

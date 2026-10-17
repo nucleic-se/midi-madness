@@ -168,7 +168,11 @@ export function createSignalSampler(
   function sample(e: Expression, t: R, c: SignalContext, local?: R): number | undefined {
     if (e.kind === 'call' && e.name === '__per') {
       try {
-        const v = perValue(e, local ?? t.sub(c.reset), structure.settings.meter);
+        const v = perValue(
+          e,
+          e.clock === 'song' ? t : (local ?? t.sub(c.reset)),
+          structure.settings.meter,
+        );
         return Number(v.numerator) / Number(v.denominator);
       } catch (error) {
         issue('R003', (error as Error).message, e);

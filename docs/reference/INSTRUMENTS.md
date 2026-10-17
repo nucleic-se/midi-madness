@@ -115,7 +115,9 @@ names win, followed by exact drum lanes, `lane:*` for drums, or `role:NAME` and
 Software targets use existing normalized score controls plus the native instrument
 controls documented in `packages/render/INSTRUMENT_PARAMS.md`. Hardware calibration and
 general native-unit arithmetic are not supported; narrow software literals are supported. Software setup parsing belongs to the
-render package; MIDI export and live playback continue to use MIDI setups.
+render package. Combined MIDI export (`--midi`) and live playback use MIDI setups;
+[per-part DAW export](../guides/EXPORTING_TO_A_DAW.md) uses the software performance
+and reports approximation/translation limits.
 See `packages/render/README.md` for supported commands and backend limitations.
 
 ### MIDI targets

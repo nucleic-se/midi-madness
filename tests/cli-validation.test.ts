@@ -145,3 +145,39 @@ test('render retains compiler diagnostics instead of reclassifying them as usage
     assert.ok(data.diagnostics.some((d: { code: string }) => d.code === 'R001'));
     assert.equal(data.result.failure, undefined);
   }));
+
+test('native envelope and EQ errors retain included source diagnostics', () =>
+  fixture((path, directory) => {
+    const fragment = join(directory, 'controls.mmi');
+    for (const field of ['attack = 0ms', 'filter.release = 9s', 'insert = eq gain 30dB']) {
+      writeFileSync(fragment, field + '\nplays notes | C4 . . . |\n');
+      writeFileSync(path, header + 'part lead\n  include "controls.mmi"\n');
+      const result = invoke('check', path, '--setup', 'setups/band/band.setup', '--json');
+      assert.equal(result.status, 1, result.stderr);
+      const data = JSON.parse(result.stdout);
+      assert.equal(data.summary.errors, 1);
+      assert.equal(data.diagnostics[0].file, fragment);
+      assert.equal(data.diagnostics[0].span.line, 1);
+      assert.match(data.diagnostics[0].message, /must be/);
+    }
+  }));
+
+test('section lane diagnostics preserve include and template origins', () =>
+  fixture((path, directory) => {
+    const fragment = join(directory, 'controls.mmi');
+    writeFileSync(fragment, 'cutoff = by section: missing 0.3, * 0.2\nplays notes | C4 . . . |\n');
+    writeFileSync(path, header + 'part lead\n  include "controls.mmi"\n');
+    const included = invoke('check', path, '--setup', 'setups/band/band.setup', '--json');
+    assert.equal(included.status, 1, included.stderr);
+    const data = JSON.parse(included.stdout);
+    assert.equal(data.diagnostics[0].file, fragment);
+    assert.equal(data.diagnostics[0].span.line, 1);
+    assert.match(data.diagnostics[0].message, /Unknown section selector/);
+    const source =
+      header +
+      'template tone():\n  cutoff = by section: missing 0.2, * 0.3\n  plays notes | C4 . . . |\n\npart lead = tone()\n';
+    writeFileSync(path, source);
+    const templated = invoke('check', path, '--setup', 'setups/band/band.setup', '--json');
+    assert.equal(templated.status, 1, templated.stderr);
+    assert.equal(JSON.parse(templated.stdout).diagnostics[0].span.line, 10);
+  }));

@@ -3,7 +3,10 @@
 Use `mm render` and `mm check --setup setups/band/band.setup` for these software
 controls. Named shapes, sync divisions, the unit literals below and the small
 `mix` block are handled by the render package. They are not a general native-unit expression
-language and are not accepted by ordinary check/format/MIDI export commands.
+language and are not accepted by ordinary core check/format or the combined-file
+and live MIDI backend. DAW export uses the software adapter and reports controls
+that its MIDI representation cannot carry; see
+[DAW export](../../docs/guides/EXPORTING_TO_A_DAW.md).
 
 See [instrument parameters](INSTRUMENT_PARAMS.md) for note-tracked rates, note
 triggering, phase/fade/slew, a second LFO, new destinations and per-note locks.

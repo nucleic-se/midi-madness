@@ -1,3 +1,4 @@
+import type { StageGain } from './metering.ts';
 import { SpatialVoice, type SpatialSettings } from './spatial.ts';
 import {
   LaneCursor,
@@ -50,6 +51,7 @@ export type SynthEvent =
   | { sample: number; type: 'off'; id: string }
   | { sample: number; type: 'set'; name: string; value: number | null; phaseAnchor?: boolean };
 export type MemberReport = {
+  insertStages?: StageGain[];
   notes: number;
   slides: number;
   accents: number;
@@ -58,6 +60,8 @@ export type MemberReport = {
   ignored: string[];
 };
 export type AudioBuses = {
+  /** Optional observational post-part stereo tap; never enters the signal path. */
+  partCapture?: { left: Float32Array; right: Float32Array };
   ambisonic?: Float32Array[];
   left: Float32Array;
   right: Float32Array;
@@ -423,6 +427,7 @@ export function renderMember(
   songStartSample = 0,
   processing: {
     inserts?: Stage[];
+    measureFrom?: number;
     cuts?: number[];
     preset?: Partial<Preset>;
     grainCapacity?: number;
@@ -433,7 +438,13 @@ export function renderMember(
     envelopes?: EnvelopeRecord[];
   } = {},
 ): MemberReport {
-  const chain = createInsertChain(processing.inserts ?? [], sr, seed, songStartSample);
+  const chain = createInsertChain(
+    processing.inserts ?? [],
+    sr,
+    seed,
+    songStartSample,
+    processing.measureFrom ?? 0,
+  );
   let cutCursor = 0,
     noteHz = 440;
   const { preset: p, voiceCount } = memberPreset(
@@ -1552,6 +1563,10 @@ export function renderMember(
     left *= mix.gain * (world ? 1 : smoothGain);
     right *= mix.gain * (world ? 1 : smoothGain);
     report.peak = Math.max(report.peak, Math.abs(left), Math.abs(right));
+    if (out.partCapture) {
+      out.partCapture.left[i] = left;
+      out.partCapture.right[i] = right;
+    }
     out.left[i] += left;
     out.right[i] += right;
     if (routes.length) sendAudio(routes, i, preLeft, preRight, left, right);
@@ -1562,6 +1577,7 @@ export function renderMember(
   }
   now = out.left.length;
   for (const v of voices) close(v);
+  report.insertStages = chain.measurements();
   return report;
 }
 const acidAmp: Envelope = { a: 0.003, d: 0.2, s: 1, r: 0.008 };

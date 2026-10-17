@@ -1,3 +1,4 @@
+import { measureStereo, stageGain, type StageGain } from './metering.ts';
 import type { AudioBuses } from './engine.ts';
 import { createProcessor, nativeEffectValue, type EffectType } from './processors.ts';
 
@@ -19,6 +20,7 @@ export type Bus = {
 export type BusEvent = { sample: number; stage: string; field: string; value: number | null };
 export type BusSection = { name: string; from: number; to: number };
 export type BusReport = {
+  stages: StageGain[];
   peak: number;
   rmsDb: number;
   tailSeconds: number;
@@ -207,6 +209,7 @@ export function renderBuses(
   formEnd: number,
   processing: {
     cuts?: number[];
+    measureFrom?: number;
     triggers?: Record<string, { sample: number; velocity: number }[]>;
   } = {},
 ) {
@@ -234,13 +237,18 @@ export function renderBuses(
     }
     const events = controls[bus.name] ?? [];
     let pendingAtLimit = false;
+    const stages: StageGain[] = [];
     for (const stage of bus.stages) {
+      const input = measureStereo(audio, processing.measureFrom ?? 0);
       const selected = events.filter((e) => e.stage === stage.id);
       const remaining =
         stage.type === 'reverb'
           ? processReverb(audio, stage, selected, sr, processing.cuts ?? [])
           : processEffect(audio, stage, selected, sr, processing.cuts ?? []);
       pendingAtLimit ||= remaining;
+      stages.push(
+        stageGain(stage.id, stage.type, input, measureStereo(audio, processing.measureFrom ?? 0)),
+      );
     }
     let wetPeak = 0;
     for (let i = 0; i < frames; i++)
@@ -320,6 +328,7 @@ export function renderBuses(
     if (pendingAtLimit)
       warnings.push(`Bus ${bus.name}: queued or active tail reached the render limit`);
     reports[bus.name] = {
+      stages,
       peak,
       rmsDb: 10 * Math.log10(Math.max(1e-20, total / (2 * frames))),
       // Instrument releases can feed a bus beyond the score end. Include that

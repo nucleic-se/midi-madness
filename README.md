@@ -46,11 +46,13 @@ On Linux, installing the native MIDI dependency may require build tools and ALSA
 | Render an excerpt | `npm run mm -- render song.mm --from "bar 1" --bars 4` |
 | Inspect a part | `npm run mm -- roll song.mm --part lead --bars 1..4` |
 | Inspect a bar | `npm run mm -- explain song.mm --bar 1` |
+| Export a DAW pack | `npm run mm -- pack song.mm --out renders/song-pack` |
+| Export MIDI per part | `npm run mm -- export song.mm --midi-dir renders/song-midi` |
 | Export MIDI | `npm run mm -- export song.mm --midi song.mid` |
 | List MIDI outputs | `npm run mm -- ports` |
 | Play a configured MIDI setup | `npm run mm -- play song.mm --setup studio.setup` |
 
-Save the score above as `song.mm` to try the audio and inspection commands. MIDI export without a setup writes notes with automatic channels and General MIDI drum mappings. Live playback requires a setup for your devices; software presets and effects do not configure a hardware synthesizer.
+Save the score above as `song.mm` to try the audio and inspection commands. `export --midi` without a setup writes notes with automatic channels and General MIDI drum mappings. `export --midi-dir` follows the software performance and writes one file per part. Live playback requires a setup for your devices; software presets and effects do not configure a hardware synthesizer.
 
 The language includes reusable motifs and functions, exact musical time, harmony, conditions, curves, templates and file includes. The software renderer adds synths and drums, inserts and effect buses, note paths, microtuning, spatial audio and optional stems and analysis. See [supported features and limitations](docs/SUPPORTED_FEATURES.md).
 
@@ -64,6 +66,7 @@ The [example guide](examples/README.md) has commands for checking and rendering 
 
 - [Write your first song](docs/guides/WRITING_A_SONG.md)
 - [Render audio](docs/guides/RENDERING_AUDIO.md)
+- [Export stems and MIDI to a DAW](docs/guides/EXPORTING_TO_A_DAW.md)
 - [Export and play MIDI](docs/guides/USING_MIDI.md)
 - [Inspect and revise a score](docs/guides/INSPECTING_SCORES.md)
 - [Language, CLI and instrument references](docs/reference/README.md)

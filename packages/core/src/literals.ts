@@ -38,6 +38,7 @@ export function literalType(expression: Extract<Expression, { kind: 'literal' }>
 }
 export type LiteralContext = {
   materialTime?: R;
+  absoluteMaterialTime?: R;
   type: TimedType;
   meter?: readonly [number, number];
   pulse?: R;

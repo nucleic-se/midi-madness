@@ -14,7 +14,13 @@ export function conditionText(condition: import('./ast.ts').Condition): string {
 }
 export function expressionText(e: Expression): string {
   if (e.kind === 'call' && e.name === '__per')
-    return `per ${argumentText(e.args[0])}${argumentText(e.args[1]) === '1' ? ' smooth' : ''}: ${e.args.slice(2).map(argumentText).join(', ')}`;
+    return `per ${e.clock === 'song' ? 'song ' : ''}${argumentText(e.args[0])}${argumentText(e.args[1]) === '1' ? ' smooth' : ''}: ${e.args.slice(2).map(argumentText).join(', ')}`;
+  if (e.kind === 'call' && e.name === '__sections')
+    return `by section: ${e.args
+      .slice(1)
+      .filter((_, i) => i % 2 === 0)
+      .map((key, i) => `${argumentText(key)} ${argumentText(e.args[2 + i * 2])}`)
+      .join(', ')}${argumentText(e.args[0]) === '' ? '' : ` smooth ${argumentText(e.args[0])}`}`;
   if (e.kind === 'number') return e.text;
   if (e.kind === 'name') return e.name;
   if (e.kind === 'span') return `${expressionText(e.value)} ${e.unit}`;

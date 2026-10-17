@@ -33,6 +33,16 @@ The renderer writes the WAV, a versioned event sidecar and reports unless disabl
 
 Excerpts render from song start before cropping so held voices, automation and effect state are retained. See [Rendering audio](guides/RENDERING_AUDIO.md) for output behavior and [Spatial audio](../packages/render/SPATIAL.md) for coordinate/data contracts.
 
+## DAW interchange
+
+Software rendering and per-part MIDI share `performance-input.ts`, sample-grid
+preroll and note/hit/control schedulers. MIDI-only export compiles these inputs
+without synthesis. Pack export captures the actual inputs from one part-stem
+render, then writes MIDI padded to its final audio crop. Its manifest records
+alignment checks and representation losses. No hardware rig, port planning or
+program selection is involved; destination sound reconstruction remains separate.
+See [DAW export](guides/EXPORTING_TO_A_DAW.md).
+
 ## MIDI compilation and playback
 
 Instrument definitions map named parameters and drum lanes onto MIDI. Setups select parts, devices, ports, channels, programs and startup values. The compiler resolves articulation, samples controls, adapts optional traffic to output budgets and writes a MIDI file or an ordered live-playback schedule.

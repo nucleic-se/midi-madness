@@ -16,6 +16,7 @@ or rewrite harmony.
 ## Contents
 
 - [File includes](#file-includes)
+- [Sound restyling](#sound-restyling)
 - [First look](#1-a-first-look) and [lexical rules](#2-lexical-rules)
 - [Types and event model](#3-model)
 - [Statements](#4-statements) and [song settings](#5-song-block)
@@ -55,6 +56,69 @@ accept plain, already expanded mmdsl; file entry points use `loadScore`.
 
 `mm expand song.mm` prints the include-expanded source with absolute data paths,
 so it can be saved elsewhere and checked or rendered with the same meaning.
+
+## Sound restyling
+
+A derived score can reuse a complete score and change its sound without copying
+its notes or form. Load it through a file command or `loadScore`:
+
+    mm 1
+    include score "base.mm"
+
+    restyle group keys
+      sound warm-lead
+      cutoff = 0.6
+
+    restyle part lead
+      sound fm-keys
+      insert = eq gain 3dB
+      when in chorus:
+        cutoff = 0.8
+
+    restyle fx
+      bus echo = delay time 1/8, feedback 0.3
+
+    restyle bus echo
+      return = 0.4
+
+`include score` imports a complete `mm 1` score, including its song and form,
+in place of the include line. The imported header is validated and omitted.
+A derived file has its own `mm 1` header, exactly one top-level `include score`
+before its restyle blocks, and no other top-level declarations. Layers can import
+other layers. Paths, cycles, dependency hashes and diagnostic locations follow
+the ordinary include rules. Indented fragment includes may supply restyle fields.
+`mm expand` emits a standalone score with the overrides already applied.
+
+`restyle part NAME` selects an explicitly declared part. `restyle group NAME`
+selects whole explicit parts whose direct `group` declaration names that group;
+per-note groups do not select parts. Template/loop-generated targets are
+unsupported and report an error. Unmodified generated parts can coexist with
+explicit targets. Overrides apply in order, with outer layers applied last.
+
+Part patches accept static `sound`, `mono`, `voices` and `unison` settings,
+`insert = ...`, and sound/control assignments: cutoff, resonance (`res`),
+envelopes, level, pan, drive, oscillators, modulation, sends, insert controls and
+spatial controls. They cannot change note material, range, group, lane, role,
+velocity, length, restart or rate. Musical fields remain inherited.
+Duplicate fields within a patch are errors. Values use the ordinary parameter
+syntax and validation, including native units and section-keyed lanes.
+
+A direct field replaces the matching direct field or is added if absent. Existing
+conditional fields remain active and can override a changed direct value.
+To change them, include the same `when ...:` condition and the specific fields;
+unmentioned fields, including conditional `plays`, remain inherited. Conditions
+match by text with normalized whitespace. Restyle bodies use two spaces and
+conditional fields four spaces; nested conditions are unsupported.
+
+`restyle fx` replaces the entire `fx` declaration block, or adds it if absent.
+It accepts bus declarations only. `restyle bus NAME` changes controls and ducking
+for a declared bus or the built-in `room`/`echo` buses. Existing sends and bus
+controls remain inherited: replacement chains must preserve their referenced bus
+and stage names or update the corresponding controls. Ordinary renderer
+validation reports invalid references.
+
+String-based parsing and rendering APIs accept the expanded source, as with
+ordinary file includes. Source files are not modified by loading a derived score.
 
 ## 0. Principles
 
@@ -542,6 +606,48 @@ curve bright = across song 3 5 9 4
 Signals are `values`: literals (§6.1, §6.6), curves, `trigger(…)`, and arithmetic over them.
 Sequencing places signals in time (`signal s = a b`).
 
+### Section-keyed parameter lanes
+
+```text
+cutoff = by section: verse 0.3, chorus 0.8, * 0.5 smooth 1 bar
+```
+
+`by section:` compiles constant scalar choices into a song-clock value lane.
+A form label takes precedence over its original section name, then `*` supplies
+a fallback. Repeated uses of a section share its choice; label a form occurrence
+with `as` to give it a different choice. Entry order does not affect precedence.
+Duplicate or unknown selectors and uncovered form sections are errors. Values
+can use constant arithmetic, constant bindings and value-function parameters;
+time-varying signals cannot serve as target constants.
+
+Without `smooth`, each target takes effect at its section boundary. With a
+positive musical span, later targets are approached linearly from the value at
+that boundary. The first target applies immediately. An interrupted ramp starts
+its next transition from its current value; an unchanged target continues its
+existing ramp. The value reached at song end holds. Smoothing uses the parameter's
+existing numeric domain, not a new physical-unit interpolation rule.
+
+The compiler uses exact rational section/smoothing durations to build an ordinary
+`per song S:` lane (or `per song S smooth:`). This clock follows song position
+and ignores part restarts. Plain `per S:` retains its existing use-reset clock.
+Both explicit forms loop; the section compiler includes end-hold points so its
+lane does not wrap during the song. A compiled section lane is limited to 65,536
+values; excessively fine grids produce an error rather than truncated output.
+
+For `form = A B A`, with A lasting one bar and B two bars:
+
+```text
+cutoff = by section: A 0.2, B 0.8 smooth 1 bar
+// Equivalent over this form:
+cutoff = per song 1 bar smooth: 0.2, 0.2, 0.8, 0.8, 0.2, 0.2
+```
+
+Hold/smooth lanes, named signals and value functions use the same implementation.
+Rates inside part plays may use song-clock lanes; dynamic lanes still cannot
+define the form whose sections they depend on. Querying a window retains the
+same values as realizing the complete song. Software fields that accept native
+insert/bus/envelope literals also accept those literals as section targets.
+
 ### 10.3 Expressions
 
 - Sources: numbers, signals, curves, `min`, `max`, `clamp(x, lo, hi)`, `pick(<condition>, a, b)`,
@@ -853,7 +959,10 @@ element    = expr [ "as" name ]
 expr       = product { ( "+" | "-" ) product }        // spaces required around operators
 product    = term { ( "*" | "/" ) term }
 term       = primary { "." opname [ "(" args ")" ] }
-primary    = name | literal | call | "(" expr ")" | "<" seq ">" | "rest" "(" span ")"
+primary    = name | literal | call | per-values | section-values | "(" expr ")" | "<" seq ">" | "rest" "(" span ")"
+per-values = "per" [ "song" ] span [ "smooth" ] ":" expr { "," expr }
+section-values = "by" "section" ":" section-value { "," section-value } [ "smooth" span ]
+section-value = ( name | "*" ) expr
 call       = name "(" [ args ] ")"
 args       = seq { "," seq }                         // an argument may be a sequence: cadence(V i)
 where-args = condition ":" op { "," op }               // for .where
@@ -1024,8 +1133,9 @@ Software parts can select a fixed preset with `sound <name>`, including `ks-pluc
 and `choir`. Their `pluck.*`, vowel/formant and `lfo.vowel` controls use ordinary
 parameter expressions; fixed pluck decay times and formant shifts accept `ms`/`s`
 and `st` literals. See `packages/render/SOUNDS.md` and the executable score
-`tests/fixtures/render/new-sounds.mm`. Sound changes inside overrides and MIDI
-transport of preset selection are not supported.
+`tests/fixtures/render/new-sounds.mm`. Sound changes inside conditional `when` overrides and MIDI
+transport of preset selection are not supported. Derived-score `restyle` blocks
+can replace a part's static sound selection.
 
 `mm render` and `mm check --setup setups/band/band.setup` accept named effect buses,
 ordered insert chains, note-triggered bus ducking, `silence ... and cut fx`, and song
@@ -1033,10 +1143,14 @@ tuning (`equal`, five-/seven-limit `just from <pitch class>` or `just chord`, an
 explicit twelve-class `cents` tables). A pitch suffix such as `G3-13.69ct` lowers
 to a `cents` lock; cents are additive to the tuning declaration and member bend.
 Tuning is captured at attack and remains independent for overlapping voices.
-Independent suffixes inside a `+` chord and MIDI tuning transport are not supported.
+Independent suffixes inside a `+` chord are unsupported. The MIDI-setup backend
+does not transport this tuning declaration. Per-part DAW export encodes fractional
+tuning as channel bend with reported overlap/range limits; see
+[DAW export](../guides/EXPORTING_TO_A_DAW.md).
 
 These extensions lower to the existing AST in the software score adapter. Ordinary
-core/MIDI commands do not accept the extra declaration syntax. Exact supported
+core commands and the MIDI-setup backend do not accept the extra declaration syntax.
+Per-part DAW export uses the software adapter. Exact supported
 fields and bounds are in `packages/render/INSERTS.md` and `packages/render/EFFECTS.md`.
 The executable syntax examples are `tests/fixtures/render/inserts.mm` and
 `tests/fixtures/render/effects.mm`; focused scheduling/routing checks are in

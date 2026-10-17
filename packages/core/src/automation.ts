@@ -37,9 +37,8 @@ export function automation(
       if (e.kind === 'call' && e.name === '__per') {
         try {
           const step = perData(e, structure.settings.meter).step;
-          let t = region.reset.add(
-            step.mul(new R(region.start.sub(region.reset).div(step).floor())),
-          );
+          const origin = e.clock === 'song' ? zero : region.reset;
+          let t = origin.add(step.mul(new R(region.start.sub(origin).div(step).floor())));
           for (let guard = 0; t.compare(region.end) <= 0 && guard < 65536; guard++, t = t.add(step))
             times.push(t);
         } catch {

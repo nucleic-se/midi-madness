@@ -1,18 +1,23 @@
-import { ScoreDiagnosticsError, scoreContext } from '../../core/src/score-error.ts';
-import { mapScoreDiagnostic } from '../../core/src/score-diagnostics.ts';
+import {
+  preparePerformance,
+  performanceClock,
+  schedulePartNotes,
+  schedulePartHits,
+} from './performance-input.ts';
+import { scheduleControls } from './schedule-controls.ts';
+import type { StageGain } from '../../synth/src/metering.ts';
+import { scoreContext } from '../../core/src/score-error.ts';
 import { provenanceHash, type LoadedScore, type ScoreDependency } from '../../core/src/include.ts';
 import { writeGroupStems } from './group-stems.ts';
 import type { Stereo } from '../../synth/src/buses.ts';
-import { generatedEvents } from '../../core/src/note-generators.ts';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
-import { Rational as R, realize, timeAt, type RealizationResult } from '../../core/src/index.ts';
+import { Rational as R, timeAt } from '../../core/src/index.ts';
 import type { PartIR } from '../../core/src/ir.ts';
 import {
   buffers,
   memberPreset,
-  voiceControl,
   renderMember,
   seedHash,
   type SynthEvent,
@@ -23,25 +28,14 @@ import {
   defaultDrumPan,
   drumLaneModel,
   renderDrum,
-  type DrumControl,
   type DrumEnvelopeRecord,
 } from '../../synth/src/drums.ts';
 import { busBuffers, renderBuses, type BusEvent } from '../../synth/src/buses.ts';
 import { busField } from './fx-score.ts';
-import { configuredPreset } from '../../synth/src/presets.ts';
-import { loadSoftwareSetup, bindSoftware, type SoftwareSetup } from './setup.ts';
+import { bindSoftware } from './setup.ts';
 import { writeWav, writeAmbisonicWav } from './wav.ts';
-import { scheduleNotes } from './notes.ts';
-import {
-  prepareSoftwareScore,
-  validateSoftwareScore,
-  modulationDomains,
-} from './score-settings.ts';
-import { fastShapeControl, constantControl } from './shape-rate.ts';
-import { tuningCents } from './tuning.ts';
 import { createAnalysis } from './analysis.ts';
-import { softwareWarnings } from './warnings.ts';
-import { soundDomains } from './sounds.ts';
+import { createPartStems } from './part-stems.ts';
 import { rendererHash } from './fingerprint.ts';
 import {
   writePerformanceJson,
@@ -60,7 +54,11 @@ const number = (r: R) => Number(r.numerator) / Number(r.denominator);
 export type RenderOptions = {
   /** Dependency provenance supplied by file-reading entry points. */
   score?: LoadedScore;
-  stemsBy?: 'group';
+  /** Optional filename prefix for exported part/bus stems. */
+  stemPrefix?: string;
+  /** Observe the same backend inputs written to the versioned sidecar. */
+  capturePerformance?: (data: PerformanceData) => void;
+  stemsBy?: 'group' | 'part';
   /** Internal stem passes share the parent timeline and do not write files. */
   internalGroup?: string;
   internalPass?: boolean;
@@ -78,9 +76,8 @@ export type RenderOptions = {
 };
 export function renderSong(source: string, filename: string, options: RenderOptions = {}) {
   const fingerprint = rendererHash(options.setup);
-  const started = performance.now(),
-    setup = loadSoftwareSetup(options.setup);
-  const prepared = prepareSoftwareScore(source, filename);
+  const started = performance.now();
+  const { setup, prepared, realized, song } = preparePerformance(source, filename, options);
   const dependencies: ScoreDependency[] = options.score?.files ?? [
     {
       path: resolve(filename),
@@ -90,40 +87,11 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     ...prepared.dataDependencies.map((d) => ({ ...d, kind: 'data' as const })),
   ];
   const scoreDigest = provenanceHash(dependencies);
-  const realized = realize(prepared.coreSource, {
-    templateContext: prepared.templates,
-    deferDeviceExpectations: true,
-    parameterDomains: prepared.domains,
-    attackLimit: 256,
-    attackLimitSeverity: 'warning',
-    controlOnlyParts: new Set(Object.keys(prepared.busParts)),
-  });
-  if (realized.summary.errors || !realized.song)
-    throw new ScoreDiagnosticsError(realized.diagnostics);
-  if (options.score)
-    realized.diagnostics = realized.diagnostics.map((d) => mapScoreDiagnostic(d, options.score!));
-  realized.diagnostics = realized.diagnostics.filter(
-    (d) => !(d.code === 'P001' && d.message.includes('fxbus__')),
-  );
   if (prepared.space.output === 'ambisonic' && options.stemsBy)
-    throw new RangeError('Grouped stems currently require stereo or binaural output');
-  validateSoftwareScore(realized.song, prepared);
-  realized.diagnostics.push(
-    ...softwareWarnings(
-      realized,
-      setup,
-      prepared.sounds,
-      prepared.presetOverrides,
-      prepared.tuning,
-    ),
-  );
-  const song = realized.song,
-    sr = setup.sampleRate,
+    throw new RangeError('Stems currently require stereo or binaural output');
+  const sr = setup.sampleRate,
     bpm = number(song.tempo),
     secPerWhole = 240 / bpm;
-  for (const part of song.parts) {
-    part.events = part.events.flatMap((e) => generatedEvents(e, secPerWhole, song.seed));
-  }
   const position = (r: R) => Math.round(number(r) * secPerWhole * sr);
   const members = song.parts.filter((p) => !(p.name in prepared.busParts));
   const selected = (text?: string) =>
@@ -145,14 +113,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       .filter((p) => (!solo.length || solo.includes(p.name)) && !mute.includes(p.name))
       .map((p) => p.name),
   );
-  let minSample = 0,
-    last = position(song.extent);
-  for (const part of song.parts)
-    for (const e of part.events) {
-      minSample = Math.min(minSample, position(e.performedOnset));
-      last = Math.max(last, position(e.performedOnset.add(e.gate)));
-    }
-  const offset = Math.ceil(-minSample / (sr * 0.01)) * Math.round(sr * 0.01);
+  const { offset, last } = performanceClock(song, sr);
   const allCuts = prepared.cutBefore
     .flatMap((c) =>
       song.sections
@@ -192,6 +153,13 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       from: Math.max(outputFrom, position(b.onset) + offset),
       to: Math.min(endSample + offset, position(b.onset.add(b.span)) + offset),
     }));
+  const partStems =
+    options.stemsBy === 'part' && !options.internalPass
+      ? createPartStems(destination, sr, outputFrom, 'part', options.stemPrefix)
+      : undefined;
+  const partCapture = partStems
+    ? { left: new Float32Array(frames), right: new Float32Array(frames) }
+    : undefined;
   const analysis =
     options.analysis && !options.noAnalysis
       ? createAnalysis(
@@ -284,15 +252,13 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     const memberAudio = analysis
       ? { ...audio, left: new Float32Array(frames), right: new Float32Array(frames) }
       : audio;
+    if (partCapture) {
+      partCapture.left.fill(0);
+      partCapture.right.fill(0);
+      memberAudio.partCapture = partCapture;
+    }
     if (part.lane) {
-      const hits = part.events
-        .filter((e) => e.velocity > 0 && position(e.performedOnset) < endSample)
-        .map((e) => ({
-          sample: position(e.performedOnset) + offset,
-          velocity: e.velocity,
-          locks: e.locks,
-        }))
-        .sort((a, b) => a.sample - b.sample);
+      const hits = schedulePartHits(part, position, offset, endSample);
       const drumControls = controls.map((e) => ({
         sample: e.sample,
         name: e.name,
@@ -317,6 +283,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       reports[part.name] = {
         ...renderDrum(part.lane, hits, drumControls, hats, sr, seed, memberAudio, {
           inserts: prepared.inserts[part.name],
+          measureFrom: outputFrom,
           cuts,
           offset,
           space: prepared.space,
@@ -329,19 +296,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     } else {
       const events: SynthEvent[] = [
         ...controls,
-        ...scheduleNotes(
-          part,
-          configuredPreset(binding.preset, prepared.presetOverrides[part.name]).mono,
-          position,
-          offset,
-          endSample,
-          (e) =>
-            tuningCents(
-              prepared.tuning,
-              e.pitch!,
-              realized.harmony?.chordAt(e.nominalOnset).root ?? null,
-            ),
-        ),
+        ...schedulePartNotes(part, binding.preset, prepared, realized, position, offset, endSample),
       ];
       const order = { set: 0, off: 1, on: 2 };
       events.sort((a, b) => a.sample - b.sample || order[a.type] - order[b.type]);
@@ -371,6 +326,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
           offset,
           {
             inserts: prepared.inserts[part.name],
+            measureFrom: outputFrom,
             cuts,
             preset: prepared.presetOverrides[part.name],
             space: prepared.space,
@@ -382,6 +338,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
         preset: binding.preset,
       };
     }
+    if (partStems && partCapture) partStems.member(part.name, partCapture);
     if (analysis) {
       analysis.member(part.name, memberAudio);
       for (let i = 0; i < frames; i++) {
@@ -407,6 +364,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     offset + endSample,
     {
       cuts,
+      measureFrom: outputFrom,
       triggers: Object.fromEntries(
         members
           .filter((p) => included.has(p.name))
@@ -487,7 +445,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     rmSync(performancePath, { force: true });
     if (audio.ambisonic) writeAmbisonicWav(destination, audio.ambisonic, sr, outputFrom, outputEnd);
     else writeWav(destination, audio.left, audio.right, sr, outputFrom, outputEnd);
-    writePerformanceJson(performancePath, {
+    const performanceData = {
       format: 'midi-madness-performance',
       version: 1,
       title: song.title,
@@ -525,8 +483,16 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       selection: { solo, mute, members: [...included] },
       // Generated core events plus bars/sections retain score intent alongside synth articulation.
       score: song,
-    } satisfies PerformanceData);
+    } satisfies PerformanceData;
+    options.capturePerformance?.(performanceData);
+    writePerformanceJson(performancePath, performanceData);
   }
+  const busStems = partStems
+    ? createPartStems(destination, sr, outputFrom, 'bus', options.stemPrefix)
+    : undefined;
+  if (busStems) for (const bus of prepared.buses) busStems.member(bus.name, audio.buses![bus.name]);
+  const busStemResult = busStems?.finish(outputEnd);
+  const partStemResult = partStems?.finish(outputEnd);
   const analysisResult = analysis?.finish(audio, outputEnd, song.title);
   const warnings = Object.entries(reports).flatMap(([name, p]) => [
     ...(p.notes && p.peak < 0.000001 ? [`${name}: scheduled notes rendered silent`] : []),
@@ -568,6 +534,8 @@ export function renderSong(source: string, filename: string, options: RenderOpti
   const report = {
     space: prepared.space,
     groupStems,
+    partStems: partStemResult,
+    busStems: busStemResult,
     engine: 'band-draft-0.4',
     rendererHash: fingerprint,
     fullRender: !options.from && !options.bars && !options.solo && !options.mute,
@@ -592,6 +560,13 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       bar1Sample: options.from ? null : offset,
       from: fromR.toString(),
     },
+    stageGainMeasurement: {
+      fromSample: outputFrom,
+      toSample: frames,
+      sampleRate: sr,
+      description:
+        'Unweighted stereo RMS/peak before and after each stage, including insert mix/bypass; bus stages precede return faders/ducking. Includes allocated tail beyond final crop. Silence floor -200 dBFS; gainDb is null if either side is silent. Not LUFS or a constant gain setting.',
+    },
     members: reports,
     buses: busReports,
     effectGraph: prepared.buses,
@@ -614,19 +589,28 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     diagnostics: realized.diagnostics,
     draft: true,
   };
+  const stageText = (stages: StageGain[]) =>
+    stages
+      .map(
+        (s) =>
+          `\n  ${s.id} (${s.type}): RMS ${s.input.rmsDb.toFixed(1)} -> ${s.output.rmsDb.toFixed(1)} dBFS, gain ${s.gainDb === null ? 'undefined (silent input/output)' : `${s.gainDb >= 0 ? '+' : ''}${s.gainDb.toFixed(1)} dB`}`,
+      )
+      .join('');
   const text =
     `${song.title}\n${seconds.toFixed(2)} s · peak ${(20 * Math.log10(Math.max(1e-10, report.peak))).toFixed(2)} dBFS · rendered in ${report.elapsedSeconds.toFixed(2)} s\n` +
     Object.entries(reports)
       .map(
         ([name, p]) =>
-          `${name}: ${p.notes} notes, ${p.slides} slides, ${p.accents} accents, peak ${(20 * Math.log10(Math.max(1e-10, p.peak))).toFixed(1)} dBFS`,
+          `${name}: ${p.notes} notes, ${p.slides} slides, ${p.accents} accents, peak ${(20 * Math.log10(Math.max(1e-10, p.peak))).toFixed(1)} dBFS` +
+          stageText(p.insertStages ?? []),
       )
       .join('\n') +
     '\n' +
     Object.entries(busReports)
       .map(
         ([name, b]) =>
-          `Bus ${name}: RMS ${b.rmsDb.toFixed(1)} dBFS, peak ${(20 * Math.log10(Math.max(1e-10, b.peak))).toFixed(1)} dBFS, tail ${b.tailSeconds.toFixed(2)} s`,
+          `Bus ${name}: RMS ${b.rmsDb.toFixed(1)} dBFS, peak ${(20 * Math.log10(Math.max(1e-10, b.peak))).toFixed(1)} dBFS, tail ${b.tailSeconds.toFixed(2)} s` +
+          stageText(b.stages),
       )
       .join('\n') +
     `\nMaster safety ceiling (instantaneous peak clamp): ${mix.limitedSamples} samples reduced\n` +
@@ -648,90 +632,4 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     report,
     text,
   };
-}
-function scheduleControls(
-  realized: RealizationResult,
-  part: PartIR,
-  position: (r: R) => number,
-  offset: number,
-  endSample: number,
-  sr: number,
-  bpm: number,
-  domains: Record<string, readonly [number, number, string?]> = {},
-): (SynthEvent & { type: 'set' })[] {
-  const out: (SynthEvent & { type: 'set' })[] = [],
-    auto = realized.automation,
-    formEnd = position(realized.song!.extent);
-  for (const [name, points] of Object.entries(part.controls)) {
-    if (name === 'cents') continue;
-    // Fast shapes get a 3 kHz grid, including streams that alias to a constant in the coarse IR.
-    const fast = fastShapeControl(realized, part.name, name, bpm);
-    const phaseAnchor =
-      ['lfo.rate', 'lfo.hz'].includes(name) && constantControl(realized, part.name, name);
-    const memberPoints =
-      name === 'pan' || name.startsWith('send.') || voiceControl(name)
-        ? points.filter((p) => !p.source.startsWith('lock:'))
-        : points;
-    const distinct = new Set(
-      memberPoints.filter((p) => p.source.startsWith('expression')).map((p) => p.value),
-    );
-    if (!auto || (distinct.size <= 1 && !fast && constantControl(realized, part.name, name))) {
-      for (const p of memberPoints)
-        if (position(p.time) < formEnd && position(p.time) <= endSample)
-          out.push({ sample: position(p.time) + offset, type: 'set', name, value: p.value });
-      continue;
-    }
-    const times = new Set<number>(points.map((p) => position(p.time)));
-    for (const t of auto.boundaries(part.name, name)) times.add(position(t));
-    const stride = Math.round(sr / (fast ? 3000 : 250));
-    for (let sample = 0; sample <= endSample; sample += stride) times.add(sample);
-    const locks = (
-      name === 'pan' || name.startsWith('send.') || voiceControl(name) ? [] : part.events
-    )
-      .filter((e) => e.locks[name] !== undefined)
-      .sort((a, b) => a.nominalOnset.compare(b.nominalOnset));
-    let last: number | null | undefined;
-    for (const sample of [...times]
-      .filter((t) => t <= endSample && t < formEnd)
-      .sort((a, b) => a - b)) {
-      const time = new R(
-        BigInt(sample) * realized.song!.tempo.numerator,
-        BigInt(sr * 240) * realized.song!.tempo.denominator,
-      );
-      let v = auto.at(part.name, name, time);
-      const lock = locks.findLast(
-        (e) => time.compare(e.nominalOnset) >= 0 && time.compare(e.nominalOnset.add(e.gate)) < 0,
-      );
-      if (lock) v = lock.locks[name];
-      const domain = domains[name] ?? preparedDomain(name);
-      const value = v === undefined ? null : Math.max(domain[0], Math.min(domain[1], v));
-      if (
-        value !== last &&
-        (value === null || last === null || last === undefined || Math.abs(value - last) > 0.0001)
-      ) {
-        out.push({
-          sample: sample + offset,
-          type: 'set',
-          name,
-          value,
-          phaseAnchor,
-        });
-        last = value;
-      }
-    }
-  }
-  return out.sort((a, b) => a.sample - b.sample);
-}
-
-function preparedDomain(name: string): readonly [number, number] {
-  if (name in worldDomains) return worldDomains[name as keyof typeof worldDomains];
-  if (name === 'space.az') return [-180, 180];
-  if (name === 'space.el') return [-90, 90];
-  if (name === 'space.dist') return [0.1, 100];
-  if (name.endsWith('.feedback')) return [-0.95, 0.98];
-  return (
-    soundDomains[name] ??
-    modulationDomains[name] ??
-    (['pan', 'bend', 'envamount', 'tune'].includes(name) ? [-1, 1] : [0, 1])
-  );
 }

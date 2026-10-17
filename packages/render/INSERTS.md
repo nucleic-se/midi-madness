@@ -1,7 +1,10 @@
 # Inserts, tuning and analysis
 
 Implemented for `mm render` and `mm check --setup setups/band/band.setup`.
-These are software extensions; MIDI handling is not supported.
+These are software extensions. DAW export accepts these declarations but does not
+serialize insert DSP into MIDI; part stems retain the processed sound. See
+[DAW export](../../docs/guides/EXPORTING_TO_A_DAW.md) for tuning, pitch-expression
+and CC limitations. Combined MIDI export and live playback use MIDI setups.
 
 ## Ordered insert chains
 
@@ -23,7 +26,8 @@ voice tap and do not pass through shared inserts. This preserves per-note pan.
 |---|---|
 | `filter` | `type lp12` (also lp24, hp12, hp24, bp, notch, peak), `cutoff 1800Hz`, `resonance 20%`, `drive 0%` |
 | `autofilter` | Filter fields plus `rate 2Hz`, `depth 1oct`, `shape sine` |
-| `drive` | `amount 30%`, `tone 9kHz`, `model soft` (also tube, hard); `drive 40%` sets amount |
+| `drive` | `amount 30%`, `tone 9kHz`, `model soft` (also tube, hard), `makeup off` (also auto); `drive 40%` sets amount |
+| `eq` | `type bell` (also low-shelf, high-shelf), `frequency 1kHz`, `gain 0dB` (−24…+24), `q 0.70710678` (0.1–18, bell), `slope 1` (0.1–1, shelves) |
 | `crush` | `bits 8`, `rate 11kHz`, `jitter 0%` |
 | `chorus` | `rate 0.3Hz`, `depth 50%`, `voices 2`, `width 80%` |
 | `phaser` | `rate 0.2Hz`, `stages 6` (4–12), `center 800Hz`, `depth 2oct` (0–4), `feedback 35%`, `width 70%` |
@@ -168,3 +172,42 @@ significant input capped at the score end. Instrument releases feeding a bus aft
 the score contribute to its render tail. This is not a measurement of nominal RT60.
 See [modulation](MODULATION.md) for normalized LFO mappings and
 [sounds](SOUNDS.md) for preset velocity behavior.
+
+## Drive compensation, EQ and stage measurements
+
+Drive `makeup off` is the default and preserves the existing sound: input gain
+`1 + 30 × amount`, the selected saturation model, fixed trim
+`1 / sqrt(1 + 10 × amount)`, and tone filtering. It does not bypass drive.
+`makeup auto` instead normalizes the small-signal saturation gain, accounting
+for the tube model's bias slope. It does not measure or match LUFS/RMS, and a
+strongly saturated signal can be quieter than its input. Tone filtering remains
+active. `insert.drive.makeup = off` or `auto` also works in automation; numeric
+values are normalized and rounded to the selected mode.
+
+```text
+part keys
+  insert = drive amount 35%, makeup auto -> eq as body type bell, frequency 800Hz, gain -3dB, q 1.2
+  insert.body.gain = across section: ramp -6dB..0dB
+```
+
+EQ stages use the [RBJ biquad equations](https://www.w3.org/TR/audio-eq-cookbook/).
+Bell Q controls bandwidth; shelves use slope (1 is the steepest monotonic
+shelf). Q has no effect on shelves, and slope has no effect on bells. Frequency
+is 20Hz–20kHz; zero gain is unity. Configuration values are native, while
+unitless automation keeps the normalized 0–1 convention: EQ gain maps −24…+24 dB,
+so `0.5` means 0 dB. Use explicit `dB` for readable fixed, per-lane and shape
+endpoint values. Existing `filter type peak` is a different, gainless filter.
+EQ clamps automated parameters to these bounds during processing; the checker
+still reports out-of-domain expressions. EQ works in inserts and wet-only buses and supports the ordinary insert
+mix/bypass controls.
+
+`report.json.members.<part>.insertStages` and `buses.<bus>.stages` expose each
+stage's measured stereo input/output peak and RMS, frame count and RMS change
+in dB. Text reports include the RMS change per stage. These are observed signal
+levels, not constant gain settings or a promise of perceived loudness.
+Insert measurements include dry/wet mixing and bypass; bus stage measurements
+precede return gain and ducking. The interval begins at the excerpt origin and
+includes the allocated tail, which can extend past the final WAV crop; see
+`stageGainMeasurement` in the report. Silence has a −200 dBFS display floor;
+`gainDb` is null when either input or output is exactly silent. RMS is unweighted,
+not LUFS. Measurements do not change processor state or the mixed audio.

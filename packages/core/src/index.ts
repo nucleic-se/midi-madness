@@ -1,3 +1,4 @@
+import { lowerSectionLanes } from './section-lanes.ts';
 import { loadDataLanes } from './data.ts';
 import { diagnostic } from './diag.ts';
 import { checkExpectations } from './expect.ts';
@@ -74,7 +75,8 @@ export function check(source: string, options: CheckOptions = {}) {
         value === 'phrase' ||
         value === 'pulse' ||
         value === 'pulses' ||
-        value === '__per'
+        value === '__per' ||
+        value === '__sections'
       );
     return Object.entries(value).some(
       ([k, v]) => !['origin', 'span'].includes(k) && occurrenceDependent(v),
@@ -145,6 +147,8 @@ export function check(source: string, options: CheckOptions = {}) {
     result.ast.statements.some((s) => s.kind === 'form')
       ? buildStructure(resolution)
       : { structure: undefined, diagnostics: [] };
+  if (result.hasSectionLanes)
+    expansionDiagnostics.push(...lowerSectionLanes(resolution.normalized, arranged.structure));
   const harmony = arranged.structure ? installHarmony(resolution, arranged.structure) : undefined;
   const realized =
     arranged.structure && harmony

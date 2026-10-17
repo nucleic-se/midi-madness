@@ -18,6 +18,7 @@ These pages describe the score language, command-line interface and instrument c
 - [Sequences and functions](LANGUAGE.md#8-sequences-alternation-and-functions)
 - [Harmony](LANGUAGE.md#9-harmony)
 - [Curves and signals](LANGUAGE.md#10-curves-and-signals)
+- [Section-keyed parameter lanes](LANGUAGE.md#section-keyed-parameter-lanes)
 - [Conditions](LANGUAGE.md#11-conditions)
 - [Parts](LANGUAGE.md#12-parts)
 - [Expectations](LANGUAGE.md#14-expectations)

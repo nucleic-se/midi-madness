@@ -16,6 +16,33 @@ export function fastShapeControl(
     if (!value || typeof value !== 'object') return false;
     if (Array.isArray(value)) return value.some(walk);
     const e = value as Record<string, unknown>;
+    if (e.kind === 'call' && e.name === '__sections') {
+      // The original AST retains authored selectors; the normalized counterpart
+      // has the compiled grid needed to choose the same rate as explicit per.
+      const normalized = realized.resolution.normalized.statements.find(
+        (s) => s.kind === 'part' && s.name === part,
+      );
+      const span = JSON.stringify(e.span);
+      const compiled = (value: unknown): boolean => {
+        if (!value || typeof value !== 'object') return false;
+        if (Array.isArray(value)) return value.some(compiled);
+        const node = value as Record<string, unknown>;
+        if (node.kind === 'call' && node.name === '__per' && JSON.stringify(node.span) === span)
+          return walk(node);
+        return Object.entries(node).some(
+          ([key, child]) => !['span', 'origin', 'callSites'].includes(key) && compiled(child),
+        );
+      };
+      return (
+        (normalized?.kind === 'part' &&
+          normalized.fields.some((f) =>
+            f.kind === 'field'
+              ? f.name === name && compiled(f.value)
+              : f.fields.some((field) => field.name === name && compiled(field.value)),
+          )) ||
+        false
+      );
+    }
     if (e.kind === 'call' && e.name === '__per') {
       try {
         const span = perData(

@@ -42,6 +42,11 @@ npm run mm -- render examples/first_song.mm --analysis
 
 Analysis adds a listening page, member stems, spectrograms and peak/RMS measurements by bar and section. Spectrograms require ffmpeg. RMS measurements are unweighted dBFS, not LUFS.
 
+Use `--stems-by part` for dry part stems and complete bus-return stems from one
+synthesis pass, with peak/RMS and six-band energy measurements in the report.
+This does not require ffmpeg. Shared returns stay separate from parts; see
+[part stems and measurement semantics](../../packages/render/README.md#single-pass-part-stems).
+
 Use `--stems-by group` for contributions tagged by part/note groups; see [grouped stems](../../packages/render/PRIMITIVES.md#grouped-stems). Grouped stems support stereo and binaural output. `--no-analysis` disables reports and analysis; the mixed WAV's event sidecar is still written.
 
 ## Convert to MP3

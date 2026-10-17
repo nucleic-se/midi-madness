@@ -93,7 +93,13 @@ export function expandSequence(
       if (!context.materialTime)
         return fail('R003', 'Per rate sequences run inside part plays, not song form', e.span);
       try {
-        return perValue(e, context.materialTime, meter);
+        return perValue(
+          e,
+          e.clock === 'song'
+            ? (context.absoluteMaterialTime ?? context.materialTime)
+            : context.materialTime,
+          meter,
+        );
       } catch (error) {
         return fail('R003', (error as Error).message, e.span);
       }
@@ -173,6 +179,8 @@ export function expandSequence(
       : value;
   }
   function evaluateCore(e: Expression, expected: TimedType, prefix = false): TimedValue {
+    if (e.kind === 'call' && e.name === '__sections')
+      return fail('R003', 'Section lanes require a resolved song form', e.span);
     if (e.kind === 'call' && e.name === '__per') {
       try {
         const p = perData(e, meter),

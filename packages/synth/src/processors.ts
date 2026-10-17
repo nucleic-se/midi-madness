@@ -1,3 +1,5 @@
+import { createEqualizer } from './equalizer.ts';
+import { createLevelMeter, stageGain } from './metering.ts';
 import type { Stage } from './buses.ts';
 
 export type EffectType =
@@ -6,6 +8,7 @@ export type EffectType =
   | 'filter'
   | 'autofilter'
   | 'drive'
+  | 'eq'
   | 'crush'
   | 'chorus'
   | 'phaser'
@@ -20,7 +23,7 @@ export type Param = {
   min: number;
   max: number;
   scale?: 'exp';
-  unit?: 'hz' | 'time';
+  unit?: 'hz' | 'time' | 'db';
   choices?: string[];
 };
 const p = (initial: number, min = 0, max = 1): Param => ({ initial, min, max });
@@ -65,7 +68,15 @@ export const effectParams: Record<EffectType, Record<string, Param>> = {
   },
   filter: filter(),
   autofilter: { ...filter(), rate: rate(), depth: p(1, 0, 4), shape: shape() },
+  eq: {
+    type: { ...p(0, 0, 2), choices: ['bell', 'low-shelf', 'high-shelf'] },
+    frequency: freq(1000),
+    gain: { ...p(0, -24, 24), unit: 'db' },
+    q: p(Math.SQRT1_2, 0.1, 18),
+    slope: p(1, 0.1, 1),
+  },
   drive: {
+    makeup: { ...p(0), choices: ['off', 'auto'] },
     amount: p(0.3),
     tone: freq(9000),
     model: { ...p(0, 0, 2), choices: ['soft', 'tube', 'hard'] },
@@ -145,6 +156,7 @@ function wave(phase: number, shape: number, seed: number) {
 export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) {
   const params = { ...stage.params };
   const type = stage.type;
+  const equalizer = type === 'eq' ? createEqualizer(sr) : undefined;
   const size =
     type === 'delay'
       ? sr * 10 + 2
@@ -226,6 +238,7 @@ export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) 
       return low.some((v) => Math.abs(v) > 0.00001);
     },
     reset() {
+      equalizer?.reset();
       l.fill(0);
       r.fill(0);
       low.fill(0);
@@ -364,6 +377,18 @@ export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) 
           wl = filterChannel(wl, 2, k, mode);
           wr = filterChannel(wr, 3, k, mode);
         }
+      } else if (type === 'eq') {
+        equalizer!.process(
+          left,
+          right,
+          params.frequency,
+          params.gain,
+          Math.round(params.type),
+          params.q,
+          params.slope,
+        );
+        wl = equalizer!.left;
+        wr = equalizer!.right;
       } else if (type === 'drive') {
         const gain = 1 + params.amount * 30,
           model = Math.round(params.model);
@@ -377,7 +402,12 @@ export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) 
           oldTone = params.tone;
           toneCoef = 1 - Math.exp((-tau * params.tone) / sr);
         }
-        const trim = 1 / Math.sqrt(1 + params.amount * 10);
+        // Default retains the legacy transfer, including its fixed trim.
+        // Auto compensates the small-signal saturation gain, not measured LUFS.
+        const trim =
+          Math.round(params.makeup ?? 0) === 1
+            ? 1 / (gain * (model === 1 ? 1 - Math.tanh(0.2) ** 2 : 1))
+            : 1 / Math.sqrt(1 + params.amount * 10);
         low[0] += toneCoef * (distort(left) * trim - low[0]);
         low[1] += toneCoef * (distort(right) * trim - low[1]);
         wl = low[0];
@@ -425,17 +455,30 @@ export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) 
   return processor;
 }
 
-export function createInsertChain(stages: Stage[], sr: number, seed = 1, offset = 0) {
+export function createInsertChain(
+  stages: Stage[],
+  sr: number,
+  seed = 1,
+  offset = 0,
+  measureFrom = 0,
+) {
   const nodes = stages.map((stage, i) => ({
     stage,
     processor: createProcessor(stage, sr, seed + i, offset),
     mix: stage.params.mix,
     bypass: 0,
+    input: createLevelMeter(),
+    output: createLevelMeter(),
   }));
   let left = 0,
     right = 0;
   const smooth = 1 - Math.exp(-1 / (sr * 0.01));
   return {
+    measurements() {
+      return nodes.map((n) =>
+        stageGain(n.stage.id, n.stage.type, n.input.report(), n.output.report()),
+      );
+    },
     get left() {
       return left;
     },
@@ -457,6 +500,7 @@ export function createInsertChain(stages: Stage[], sr: number, seed = 1, offset 
     },
     process(l: number, r: number, sample: number, noteHz = 440) {
       for (const n of nodes) {
+        if (sample >= measureFrom) n.input.observe(l, r);
         const p = n.processor.params;
         n.mix += smooth * (p.mix - n.mix);
         n.bypass += smooth * (p.bypass - n.bypass);
@@ -467,6 +511,7 @@ export function createInsertChain(stages: Stage[], sr: number, seed = 1, offset 
         const dry = 1 - n.mix * (1 - n.bypass);
         l = l * dry + n.processor.left * wet;
         r = r * dry + n.processor.right * wet;
+        if (sample >= measureFrom) n.output.observe(l, r);
       }
       left = l;
       right = r;

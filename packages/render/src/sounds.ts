@@ -1,3 +1,4 @@
+import { lowerEnvelopeTimes } from './envelope-times.ts';
 import { scoreLine } from '../../core/src/score-error.ts';
 import { routedTargets, routingNames } from '../../synth/src/modulation.ts';
 import { preset, type Preset } from '../../synth/src/presets.ts';
@@ -130,7 +131,7 @@ function lowerLockUnits(source: string) {
   );
 }
 export function extractSounds(source: string, bpm = 120) {
-  source = lowerLockUnits(source);
+  source = lowerLockUnits(lowerEnvelopeTimes(source, bpm));
   const sounds: Record<string, string> = {};
   const overrides: Record<string, Partial<Preset>> = {};
   let part: string | undefined;
