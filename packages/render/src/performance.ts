@@ -9,6 +9,7 @@ import type { ListenerLanes, PositionLanes } from '../../synth/src/world.ts';
 import type { drumLaneModel, DrumEnvelopeRecord } from '../../synth/src/drums.ts';
 import type { EnvelopeRecord } from '../../synth/src/engine.ts';
 import type { Tuning } from './tuning.ts';
+import type { PreviewInfo } from './preview.ts';
 
 /** Exact backend inputs, rather than another interpretation of the source score. */
 export type PerformanceTrack = {
@@ -49,6 +50,8 @@ export type PerformanceData = {
   seed: string;
   scoreHash: string;
   rendererHash: string;
+  /** Present only for explicitly approximate windowed rendering. */
+  preview?: PreviewInfo;
   audio: {
     file: string;
     sampleRate: number;

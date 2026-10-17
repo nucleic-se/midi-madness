@@ -19,7 +19,8 @@ export function scheduleControls(
 ): (SynthEvent & { type: 'set' })[] {
   const out: (SynthEvent & { type: 'set' })[] = [],
     auto = realized.automation,
-    formEnd = position(realized.song!.extent);
+    formEnd = position(realized.song!.extent),
+    startSample = Math.max(0, -offset);
   for (const [name, points] of Object.entries(part.controls)) {
     if (name === 'cents' || omit.includes(name)) continue;
     // Fast shapes get a 3 kHz grid, including streams that alias to a constant in the coarse IR.
@@ -34,15 +35,27 @@ export function scheduleControls(
       memberPoints.filter((p) => p.source.startsWith('expression')).map((p) => p.value),
     );
     if (!auto || (distinct.size <= 1 && !fast && constantControl(realized, part.name, name))) {
+      const chased = memberPoints.findLast((p) => position(p.time) < startSample);
+      if (chased) out.push({ sample: 0, type: 'set', name, value: chased.value });
       for (const p of memberPoints)
-        if (position(p.time) < formEnd && position(p.time) <= endSample)
+        if (
+          position(p.time) >= startSample &&
+          position(p.time) < formEnd &&
+          position(p.time) <= endSample
+        )
           out.push({ sample: position(p.time) + offset, type: 'set', name, value: p.value });
       continue;
     }
     const times = new Set<number>(points.map((p) => position(p.time)));
     for (const t of auto.boundaries(part.name, name)) times.add(position(t));
     const stride = Math.round(sr / (fast ? 3000 : 250));
-    for (let sample = 0; sample <= endSample; sample += stride) times.add(sample);
+    if (startSample) times.add(startSample);
+    for (
+      let sample = Math.ceil(startSample / stride) * stride;
+      sample <= endSample;
+      sample += stride
+    )
+      times.add(sample);
     const locks = (
       name === 'pan' || name.startsWith('send.') || voiceControl(name) ? [] : part.events
     )
@@ -61,7 +74,7 @@ export function scheduleControls(
     }));
     let last: number | null | undefined;
     for (const sample of [...times]
-      .filter((t) => t <= endSample && t < formEnd)
+      .filter((t) => t >= startSample && t <= endSample && t < formEnd)
       .sort((a, b) => a - b)) {
       let v = at(sample);
       const lock = lockRanges.findLast((e) => sample >= e.start && sample < e.end);

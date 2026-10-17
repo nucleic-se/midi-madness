@@ -44,6 +44,7 @@ On Linux, installing the native MIDI dependency may require build tools and ALSA
 | Check a software score | `npm run mm -- check song.mm --setup setups/band/band.setup` |
 | Render a WAV | `npm run mm -- render song.mm` |
 | Render an excerpt | `npm run mm -- render song.mm --from "bar 1" --bars 4` |
+| Audition an approximate excerpt | `npm run mm -- render song.mm --from "bar 65" --bars 4 --preview --warmup-bars 2` ([limitations](packages/render/README.md#approximate-excerpt-previews)) |
 | Inspect a part | `npm run mm -- roll song.mm --part lead --bars 1..4` |
 | Inspect a bar | `npm run mm -- explain song.mm --bar 1` |
 | Export a DAW pack | `npm run mm -- pack song.mm --out renders/song-pack` |

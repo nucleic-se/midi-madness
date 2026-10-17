@@ -103,8 +103,20 @@ software setup; `--tail N` sets the maximum release/effect tail (default 12 s).
 including their sends. Automation retains the original song context. `--analysis`
 adds float WAV stems, mix/section/part spectrograms, and per-bar RMS/peak measurements
 under `analysis/`, with an HTML listening page. It requires ffmpeg for images.
-`--no-analysis` omits report files and analysis and overrides `--analysis`. Full renders retain opening rests; excerpts render
-from song start internally and then crop. Reports list duration, peak, silent
+`--no-analysis` omits report files and analysis and overrides `--analysis`. Full renders retain opening rests; default excerpts render
+from song start internally and then crop. `--preview` requires `--from` and
+`--bars`, and starts fresh DSP with a bounded warm-up. `--warmup-bars N` is a
+nonnegative integer (default 2), measured in score-meter bars; it requires
+`--preview`. Warm-up is clamped to song start. Preview output defaults to
+`renders/<song>/preview/mix.wav`.
+
+Previews omit notes/hits starting before warm-up, including held notes and tails.
+Earlier feedback, reverb and spatial history are lost; reset noise, phase,
+modulation and voice allocation can change sound throughout the excerpt.
+The full score still compiles, so setup can remain expensive. Reports and event
+sidecars explicitly identify approximate previews. See [preview limitations and
+sample coordinates](../../packages/render/README.md#approximate-excerpt-previews).
+Reports list duration, peak, silent
 scheduled members, slides, accents and ignored controls. Current draft DSP
 shortcuts are documented in `packages/render/README.md`.
 

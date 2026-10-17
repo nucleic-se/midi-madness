@@ -84,6 +84,8 @@ and listener lanes. It does not skip earlier audio when rendering an excerpt.
 |---|---|
 | `--out PATH` | Choose the WAV path and report directory |
 | `--from SECTION\|LABEL\|BAR\|TIME --bars N` | Render an excerpt with original song bar numbers |
+| `--preview` | Approximate excerpt with bounded warm-up; requires `--from` and `--bars` |
+| `--warmup-bars N` | Preview warm-up in score-meter bars; nonnegative integer, default 2; requires `--preview` |
 | `--solo part,part` / `--mute part,part` | Select member names, including their sends |
 | `--tail SECONDS` | Maximum release/effect tail; default 12, range 0–120 |
 | `--events-envelopes full\|none` | Include recorded note/hit envelopes (default full), or skip their capture and export |
@@ -94,13 +96,53 @@ and listener lanes. It does not skip earlier audio when rendering an excerpt.
 | `--no-analysis` | Disable analysis and report files; overrides `--analysis` |
 | `--setup PATH` | Use a software setup; default `setups/band/band.setup` |
 
-Opening rests remain in the file. Excerpts currently render from song start and
+Opening rests remain in the file. By default, excerpts render from song start and
 crop afterward, so held notes and effect state survive. ffmpeg is needed for
 spectrogram images and MP3 conversion; WAV rendering and level measurements do
 not require it. Use `npm run renders:mp3` to convert local `mix.wav` files.
 When a render report is present, conversion checks current score dependencies
 against the recorded hash and rejects stale renders; render again after editing
 an include or external lane.
+
+### Approximate excerpt previews
+
+```sh
+npm run mm -- render song.mm --from "bar 65" --bars 4 --preview --warmup-bars 2 --events-envelopes none
+```
+
+This processes audio from two score-meter bars before the excerpt, then crops
+away that warm-up. The boundary is clamped to song start. `--warmup-bars 0`
+starts fresh at the excerpt itself. The usual `--tail` allowance follows the
+excerpt. The default destination is `renders/<song>/preview/mix.wav`, separate
+from the ordinary mix; `--out` can override it. Without `--preview`, excerpt
+rendering retains its existing history-preserving behavior.
+
+**A preview is not an exact slice of the full render.** Notes and drum hits whose
+performed attacks precede the warm-up boundary are omitted, even when held or
+still releasing. Earlier echoes, reverbs, ducking and spatial propagation are
+not reconstructed. Voices and effects start with fresh DSP state: phase,
+noise, modulation, feedback and voice allocation can differ throughout the
+excerpt. A longer warm-up can reduce some differences but cannot guarantee a
+match. The score seed and compiled musical choices stay the same; this does not
+preserve a previously advanced DSP random stream. Use an ordinary render to
+verify final balance, transitions, tails and synchronization.
+
+Controls and spatial lanes are chased to their original score-time values at
+the processing boundary. The whole score is still loaded, compiled and generated;
+some automation preparation and event export also remain proportional to the
+score. This mode bounds audio processing and buffer allocation, not total setup
+time. It does not guarantee seconds-long rendering for complex scores.
+
+Reports and the version-1 event sidecar carry an optional `preview` object with
+`approximate: true`, requested warm-up, actual warm-up seconds, processing start,
+skipped sample count and limitations. A warning also appears in render text.
+The sidecar records the preview's actual backend events and envelopes; the
+`score` object retains original score context, including omitted earlier notes.
+Backend samples use the local processing origin. Continue to map audio time as
+`(sample - audio.originSample) / audio.sampleRate`; `audio.scoreOffsetSample`
+may be negative. Adding `preview.skippedSamples` to a backend sample gives its
+ordinary-render coordinate. Preview stems and measurements describe the preview
+audio, not the corresponding full-render mix.
 
 ## Instruments and score controls
 

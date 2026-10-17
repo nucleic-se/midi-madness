@@ -100,6 +100,7 @@ export function controlLane(
   if (!controls?.some((p) => p.source !== 'absent')) return [];
   const auto = realized.automation,
     formEnd = position(realized.song!.extent),
+    startSample = Math.max(0, -offset),
     clamp = (v: number | null | undefined) =>
       v === null || v === undefined ? 0 : Math.max(domain[0], Math.min(domain[1], v));
   const points = new Map<number, LanePoint>();
@@ -108,9 +109,11 @@ export function controlLane(
   );
   const fast = fastShapeControl(realized, part.name, name, bpm);
   if (!auto || (distinct.size <= 1 && !fast && constantControl(realized, part.name, name))) {
+    const chased = controls.findLast((p) => position(p.time) < startSample);
+    if (chased) points.set(0, { sample: 0, value: clamp(chased.value), curve: 'step' });
     for (const p of controls) {
       const sample = position(p.time);
-      if (sample < formEnd && sample <= endSample)
+      if (sample >= startSample && sample < formEnd && sample <= endSample)
         points.set(sample + offset, {
           sample: sample + offset,
           value: clamp(p.value),
@@ -130,12 +133,18 @@ export function controlLane(
     ]);
     const times = new Set(boundaries);
     const stride = Math.round(sr / (fast ? 3000 : 250));
-    for (let sample = 0; sample <= endSample; sample += stride) times.add(sample);
+    if (startSample) times.add(startSample);
+    for (
+      let sample = Math.ceil(startSample / stride) * stride;
+      sample <= endSample;
+      sample += stride
+    )
+      times.add(sample);
     for (const sample of [...times]
-      .filter((t) => t <= endSample && t < formEnd)
+      .filter((t) => t >= startSample && t <= endSample && t < formEnd)
       .sort((a, b) => a - b)) {
       const value = at(sample);
-      if (boundaries.has(sample) && sample > 1) {
+      if (boundaries.has(sample) && sample > startSample + 1) {
         // A boundary inside a continuous ramp is not a jump: compare with the extrapolated slope.
         const before = at(sample - 1),
           expected = 2 * before - at(sample - 2);

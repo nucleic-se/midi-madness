@@ -79,6 +79,7 @@ const valueFlags = new Set([
   '--stems-by',
   '--events-envelopes',
   '--events-parts',
+  '--warmup-bars',
   '--solo',
   '--mute',
   '--at',
@@ -94,6 +95,7 @@ const allowed = new Set([
   '--harmony',
   '--positions',
   '--cc',
+  '--preview',
 ]);
 const commandFlags: Record<string, readonly string[]> = {
   check: ['--setup'],
@@ -122,6 +124,8 @@ const commandFlags: Record<string, readonly string[]> = {
     '--stems-by',
     '--events-envelopes',
     '--events-parts',
+    '--preview',
+    '--warmup-bars',
     '--analysis',
     '--no-analysis',
   ],
@@ -144,6 +148,16 @@ function validateOptions() {
       if (!args[i + 1] || args[i + 1].startsWith('--'))
         throw new RangeError(`Missing value for ${flag}`);
       i++;
+    }
+  }
+  if (command === 'render') {
+    if (args.includes('--preview') && (!option('--from') || !option('--bars')))
+      throw new RangeError('--preview requires --from and --bars');
+    if (option('--warmup-bars') !== undefined) {
+      if (!args.includes('--preview')) throw new RangeError('--warmup-bars requires --preview');
+      const value = Number(option('--warmup-bars'));
+      if (!Number.isSafeInteger(value) || value < 0)
+        throw new RangeError('--warmup-bars must be a nonnegative safe integer');
     }
   }
   if (command === 'expand' && option('--to') && option('--to') !== 'section')
@@ -522,6 +536,9 @@ async function run() {
       out: option('--out'),
       from: option('--from'),
       bars: option('--bars'),
+      preview: args.includes('--preview'),
+      warmupBars:
+        option('--warmup-bars') === undefined ? undefined : Number(option('--warmup-bars')),
       tail,
       noAnalysis: args.includes('--no-analysis'),
       analysis: args.includes('--analysis'),

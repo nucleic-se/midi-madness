@@ -5,6 +5,7 @@ import {
   schedulePartHits,
 } from './performance-input.ts';
 import { scheduleControls } from './schedule-controls.ts';
+import { previewWindow } from './preview.ts';
 import type { StageGain } from '../../synth/src/metering.ts';
 import { scoreContext } from '../../core/src/score-error.ts';
 import { provenanceHash, type LoadedScore, type ScoreDependency } from '../../core/src/include.ts';
@@ -71,6 +72,9 @@ export type RenderOptions = {
   out?: string;
   from?: string;
   bars?: string;
+  /** Approximate excerpt: reset DSP before the requested window. Requires from and bars. */
+  preview?: boolean;
+  warmupBars?: number;
   noAnalysis?: boolean;
   analysis?: boolean;
   solo?: string;
@@ -79,6 +83,15 @@ export type RenderOptions = {
   progress?: (text: string) => void;
 };
 export function renderSong(source: string, filename: string, options: RenderOptions = {}) {
+  if (options.preview && (!options.from || !options.bars))
+    throw new RangeError('Preview requires --from and --bars');
+  if (options.warmupBars !== undefined && !options.preview)
+    throw new RangeError('--warmup-bars requires --preview');
+  if (
+    options.warmupBars !== undefined &&
+    (!Number.isSafeInteger(options.warmupBars) || options.warmupBars < 0)
+  )
+    throw new RangeError('--warmup-bars must be a nonnegative safe integer');
   if (options.eventEnvelopes !== undefined && !['full', 'none'].includes(options.eventEnvelopes))
     throw new RangeError('Event envelopes must be full or none');
   if (
@@ -130,12 +143,12 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       throw new RangeError(
         `Event part ${name} is not a rendered part; available: ${[...included].join(', ')}`,
       );
-  const { offset, last } = performanceClock(song, sr);
+  const { offset: originalOffset, last } = performanceClock(song, sr);
   const allCuts = prepared.cutBefore
     .flatMap((c) =>
       song.sections
         .filter((s) => c.sections.includes(s.name) || c.sections.includes(s.sectionName ?? ''))
-        .map((s) => Math.max(0, position(s.onset) + offset - Math.round(c.seconds * sr))),
+        .map((s) => Math.max(0, position(s.onset) + originalOffset - Math.round(c.seconds * sr))),
     )
     .sort((a, b) => a - b);
   const fromR = options.from
@@ -150,12 +163,21 @@ export function renderSong(source: string, filename: string, options: RenderOpti
   const toR = bars === undefined ? song.extent : fromR.add(new R(...song.meter).mul(new R(bars)));
   if (fromR.compare(new R(0)) < 0 || fromR.compare(song.extent) >= 0)
     throw new RangeError('Excerpt starts outside the song');
+  const preview = options.preview
+    ? previewWindow(fromR, song.meter, options.warmupBars ?? 2, originalOffset, position, sr)
+    : undefined;
+  const skippedSamples = preview?.skippedSamples ?? 0;
+  const offset = originalOffset - skippedSamples;
   const endSample = Math.min(last, position(toR)),
     frames = offset + endSample + Math.round(sr * (options.tail ?? 12));
-  const cuts = allCuts.filter((s) => s <= offset + endSample);
+  const cuts = allCuts
+    .map((s) => s - skippedSamples)
+    .filter((s) => s >= 0 && s <= offset + endSample);
   const destination = options.out
     ? resolve(options.out)
-    : resolve('renders', basename(filename, '.mm'), 'mix.wav');
+    : options.preview
+      ? resolve('renders', basename(filename, '.mm'), 'preview', 'mix.wav')
+      : resolve('renders', basename(filename, '.mm'), 'mix.wav');
   mkdirSync(dirname(destination), { recursive: true });
   const outputFrom = options.from ? offset + position(fromR) : 0;
   const sections = song.sections.map((s) => ({
@@ -164,7 +186,9 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     to: position(s.onset.add(s.extent)) + offset,
   }));
   const barRegions = song.bars
-    .filter((b) => position(b.onset.add(b.span)) > outputFrom && position(b.onset) < endSample)
+    .filter(
+      (b) => position(b.onset.add(b.span)) + offset > outputFrom && position(b.onset) < endSample,
+    )
     .map((b) => ({
       name: `bar ${b.number}`,
       from: Math.max(outputFrom, position(b.onset) + offset),
@@ -208,7 +232,12 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     .filter((p) => included.has(p.name))
     .flatMap((p) =>
       p.events
-        .filter((e) => e.velocity > 0 && position(e.performedOnset) < endSample)
+        .filter(
+          (e) =>
+            e.velocity > 0 &&
+            position(e.performedOnset) < endSample &&
+            (!skippedSamples || position(e.performedOnset) + offset >= 0),
+        )
         .map((e) => position(e.performedOnset) + offset),
     )
     .sort((a, b) => a - b);
@@ -248,6 +277,13 @@ export function renderSong(source: string, filename: string, options: RenderOpti
           ),
       ),
       seed = seedHash(`${song.seed}/${part.name}`);
+    // Earlier attacks are intentionally absent: preview does not reconstruct held voices.
+    const renderedPart = skippedSamples
+      ? {
+          ...part,
+          events: part.events.filter((e) => position(e.performedOnset) + offset >= 0),
+        }
+      : part;
     options.progress?.(`Rendering ${part.name}`);
     const frame = partFrame(part);
     const world =
@@ -276,7 +312,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       memberAudio.partCapture = partCapture;
     }
     if (part.lane) {
-      const hits = schedulePartHits(part, position, offset, endSample);
+      const hits = schedulePartHits(renderedPart, position, offset, endSample);
       const drumControls = controls.map((e) => ({
         sample: e.sample,
         name: e.name,
@@ -317,7 +353,15 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     } else {
       const events: SynthEvent[] = [
         ...controls,
-        ...schedulePartNotes(part, binding.preset, prepared, realized, position, offset, endSample),
+        ...schedulePartNotes(
+          renderedPart,
+          binding.preset,
+          prepared,
+          realized,
+          position,
+          offset,
+          endSample,
+        ),
       ];
       const order = { set: 0, off: 1, on: 2 };
       events.sort((a, b) => a.sample - b.sample || order[a.type] - order[b.type]);
@@ -395,7 +439,12 @@ export function renderSong(source: string, filename: string, options: RenderOpti
           .map((p) => [
             p.name,
             p.events
-              .filter((e) => e.velocity > 0 && position(e.performedOnset) < endSample)
+              .filter(
+                (e) =>
+                  e.velocity > 0 &&
+                  position(e.performedOnset) < endSample &&
+                  (!skippedSamples || position(e.performedOnset) + offset >= 0),
+              )
               .map((e) => ({ sample: position(e.performedOnset) + offset, velocity: e.velocity }))
               .sort((a, b) => a.sample - b.sample),
           ]),
@@ -478,6 +527,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       seed: song.seed,
       scoreHash: scoreDigest,
       rendererHash: fingerprint,
+      ...(preview ? { preview } : {}),
       // All backend event samples are retained verbatim. WAV time = (sample - originSample) / sampleRate.
       audio: {
         file: basename(destination),
@@ -530,6 +580,10 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     ...p.ignored.map((c) => `${name}: ignored parameter ${c}`),
   ]);
   warnings.push(...mix.warnings);
+  if (preview)
+    warnings.unshift(
+      `Approximate preview (${preview.actualWarmupSeconds.toFixed(2)} s warm-up): notes/hits starting before warm-up, including held notes and tails, are omitted. DSP history resets and sound may differ throughout. Full-score compilation still runs; verify with an exact render.`,
+    );
   const diagnosticCounts = new Map<string, { text: string; count: number }>();
   for (const d of realized.diagnostics)
     if (d.severity === 'warning' || d.code === 'P004') {
@@ -569,6 +623,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     busStems: busStemResult,
     engine: 'band-draft-0.4',
     rendererHash: fingerprint,
+    ...(preview ? { preview } : {}),
     fullRender: !options.from && !options.bars && !options.solo && !options.mute,
     selection: { solo, mute, members: [...included] },
     inserts: prepared.inserts,
@@ -587,7 +642,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
     channels: audio.ambisonic ? 4 : 2,
     preLimiterPeak: mix.beforePeak,
     timeline: {
-      prerollSec: offset / sr,
+      prerollSec: originalOffset / sr,
       bar1Sample: options.from ? null : offset,
       from: fromR.toString(),
     },

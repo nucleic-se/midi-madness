@@ -32,7 +32,29 @@ npm run mm -- render examples/first_song.mm --solo lead --out renders/lead/mix.w
 
 `--solo` and `--mute` accept comma-separated part names. They also affect those parts' effect sends. `--tail N` sets the maximum appended tail in seconds, from 0 to 120; the default is 12. The renderer measures and trims quiet tails within that limit.
 
-An excerpt is rendered from the song's start and then cropped, retaining the effect and held-note state at its start. A late excerpt can therefore take longer than its output duration suggests. Separate destinations keep comparison renders from replacing one another.
+By default, an excerpt is rendered from the song's start and then cropped,
+retaining effect and held-note state. A late excerpt can therefore take longer
+than its output duration suggests. Separate destinations keep comparison renders
+from replacing one another.
+
+For an approximate audition, add `--preview`:
+
+```sh
+npm run mm -- render song.mm --from "bar 65" --bars 4 --preview --warmup-bars 2 --events-envelopes none
+```
+
+Audio processing begins two score-meter bars before the excerpt, then the warm-up
+is cropped away. `--warmup-bars` defaults to 2 and accepts nonnegative integers;
+0 begins directly at the excerpt. Preview requires both `--from` and `--bars`.
+It defaults to `renders/<song>/preview/mix.wav`, separate from the regular mix.
+
+**The preview can sound different throughout the excerpt.** Notes and hits that
+started before warm-up are absent, including held notes and release tails.
+Earlier effects, spatial delays and DSP random/modulation state are not restored.
+Increasing warm-up may help but cannot guarantee an exact match. The whole score
+still compiles, so complex scores may retain substantial setup time. Reports and
+events identify the result as approximate. Verify final levels, transitions and
+tails using an ordinary render. See [preview details](../../packages/render/README.md#approximate-excerpt-previews).
 
 ## Add analysis or stems
 
