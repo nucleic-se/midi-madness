@@ -77,6 +77,8 @@ const valueFlags = new Set([
   '--out',
   '--tail',
   '--stems-by',
+  '--events-envelopes',
+  '--events-parts',
   '--solo',
   '--mute',
   '--at',
@@ -118,6 +120,8 @@ const commandFlags: Record<string, readonly string[]> = {
     '--solo',
     '--mute',
     '--stems-by',
+    '--events-envelopes',
+    '--events-parts',
     '--analysis',
     '--no-analysis',
   ],
@@ -147,6 +151,15 @@ function validateOptions() {
   if (option('--clock') && !['send', 'off'].includes(option('--clock')!))
     throw new RangeError('--clock must be send or off');
   if (['render', 'pack'].includes(command)) {
+    if (option('--events-envelopes') && !['full', 'none'].includes(option('--events-envelopes')!))
+      throw new RangeError('--events-envelopes must be full or none');
+    if (
+      option('--events-parts') !== undefined &&
+      option('--events-parts')!
+        .split(',')
+        .some((name) => !name.trim())
+    )
+      throw new RangeError('--events-parts must be a nonempty comma-separated list of part names');
     const tail = option('--tail');
     if (
       tail !== undefined &&
@@ -501,6 +514,10 @@ async function run() {
     const rendered = renderSong(loadedScore.source, file, {
       score: loadedScore,
       stemsBy: option('--stems-by') as 'group' | 'part' | undefined,
+      eventEnvelopes: option('--events-envelopes') as 'full' | 'none' | undefined,
+      eventParts: option('--events-parts')
+        ?.split(',')
+        .map((name) => name.trim()),
       setup: option('--setup'),
       out: option('--out'),
       from: option('--from'),

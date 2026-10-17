@@ -58,6 +58,10 @@ export type RenderOptions = {
   stemPrefix?: string;
   /** Observe the same backend inputs written to the versioned sidecar. */
   capturePerformance?: (data: PerformanceData) => void;
+  /** Recorded envelopes default to full; none avoids collecting them during synthesis. */
+  eventEnvelopes?: 'full' | 'none';
+  /** Export only these rendered parts. Does not alter audio or report selection. */
+  eventParts?: string[];
   stemsBy?: 'group' | 'part';
   /** Internal stem passes share the parent timeline and do not write files. */
   internalGroup?: string;
@@ -75,6 +79,13 @@ export type RenderOptions = {
   progress?: (text: string) => void;
 };
 export function renderSong(source: string, filename: string, options: RenderOptions = {}) {
+  if (options.eventEnvelopes !== undefined && !['full', 'none'].includes(options.eventEnvelopes))
+    throw new RangeError('Event envelopes must be full or none');
+  if (
+    options.eventParts &&
+    (!options.eventParts.length || options.eventParts.some((name) => !name.trim()))
+  )
+    throw new RangeError('Event parts must be a nonempty list of part names');
   const fingerprint = rendererHash(options.setup);
   const started = performance.now();
   const { setup, prepared, realized, song } = preparePerformance(source, filename, options);
@@ -113,6 +124,12 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       .filter((p) => (!solo.length || solo.includes(p.name)) && !mute.includes(p.name))
       .map((p) => p.name),
   );
+  const eventParts = new Set(options.eventParts ?? included);
+  for (const name of eventParts)
+    if (!included.has(name) && !options.internalPass)
+      throw new RangeError(
+        `Event part ${name} is not a rendered part; available: ${[...included].join(', ')}`,
+      );
   const { offset, last } = performanceClock(song, sr);
   const allCuts = prepared.cutBefore
     .flatMap((c) =>
@@ -265,7 +282,10 @@ export function renderSong(source: string, filename: string, options: RenderOpti
         name: e.name,
         value: e.value,
       }));
-      const drumEnvelopes: DrumEnvelopeRecord[] = [];
+      const drumEnvelopes: DrumEnvelopeRecord[] | undefined =
+        !options.internalPass && options.eventEnvelopes !== 'none' && eventParts.has(part.name)
+          ? []
+          : undefined;
       performanceTracks.push({
         name: part.name,
         kind: part.kind,
@@ -277,7 +297,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
         initialControls: { pan: defaultDrumPan(part.lane) },
         space,
         resolved: drumLaneModel(part.lane),
-        envelopes: drumEnvelopes,
+        ...(drumEnvelopes ? { envelopes: drumEnvelopes } : {}),
         hits,
         controls: drumControls,
       });
@@ -302,7 +322,10 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       const order = { set: 0, off: 1, on: 2 };
       events.sort((a, b) => a.sample - b.sample || order[a.type] - order[b.type]);
       const grainCapacity = part.events.some((e) => e.grain) ? 256 : undefined;
-      const envelopes: EnvelopeRecord[] = [];
+      const envelopes: EnvelopeRecord[] | undefined =
+        !options.internalPass && options.eventEnvelopes !== 'none' && eventParts.has(part.name)
+          ? []
+          : undefined;
       performanceTracks.push({
         name: part.name,
         kind: part.kind,
@@ -312,7 +335,7 @@ export function renderSong(source: string, filename: string, options: RenderOpti
         mix: binding.mix,
         space,
         resolved: memberPreset(binding.preset, prepared.presetOverrides[part.name], grainCapacity),
-        envelopes,
+        ...(envelopes ? { envelopes } : {}),
         events,
       });
       reports[part.name] = {
@@ -470,7 +493,12 @@ export function renderSong(source: string, filename: string, options: RenderOpti
         axes: '+x right, +y up, -z forward; yaw degrees clockwise from above toward +x; pitch degrees up',
         listener,
       },
-      tracks: performanceTracks,
+      tracks: performanceTracks.filter((track) => eventParts.has(track.name)),
+      ...(options.eventEnvelopes !== undefined || options.eventParts !== undefined
+        ? {
+            capture: { envelopes: options.eventEnvelopes ?? 'full', parts: [...eventParts] },
+          }
+        : {}),
       buses: prepared.buses,
       busControls,
       hats,
@@ -483,7 +511,9 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       },
       selection: { solo, mute, members: [...included] },
       // Generated core events plus bars/sections retain score intent alongside synth articulation.
-      score: song,
+      score: options.eventParts
+        ? { ...song, parts: song.parts.filter((part) => eventParts.has(part.name)) }
+        : song,
     } satisfies PerformanceData;
     options.capturePerformance?.(performanceData);
     writePerformanceJson(performancePath, performanceData);

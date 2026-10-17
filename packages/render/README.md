@@ -62,6 +62,17 @@ retriggers, releases, legato hand-offs and voice stealing, so graphics can seek 
 any time and see the envelope the audio used. Recording only observes; it does
 not change the audio.
 
+Use `--events-envelopes none` to omit recorded envelopes and avoid collecting or
+simplifying them during synthesis. Notes, hits, controls, resolved presets and
+timing remain available; consumers cannot recover the exact voice lifetimes or
+envelopes from those inputs alone. The default is `full`.
+`--events-parts lead,kick` exports only those rendered parts in `tracks` and
+`score.parts`, and only collects their envelopes. It does not solo the audio or
+change stems, analysis, or the shared bus/listener context. Names must identify
+rendered parts, including any `--solo`/`--mute` selection. Explicit export settings
+are recorded in the optional `capture` object of the version-1 sidecar; the
+default export retains its existing structure.
+
 Dense `per`/data lanes and arithmetic over them use prepared sample-coordinate
 lookups. Exact fractions still define the timeline, region ownership and lane
 boundaries. Numeric interpolation preserves the exact evaluator's output;
@@ -75,6 +86,8 @@ and listener lanes. It does not skip earlier audio when rendering an excerpt.
 | `--from SECTION\|LABEL\|BAR\|TIME --bars N` | Render an excerpt with original song bar numbers |
 | `--solo part,part` / `--mute part,part` | Select member names, including their sends |
 | `--tail SECONDS` | Maximum release/effect tail; default 12, range 0–120 |
+| `--events-envelopes full\|none` | Include recorded note/hit envelopes (default full), or skip their capture and export |
+| `--events-parts part,part` | Select event-export parts without changing the audio mix |
 | `--stems-by part` | Capture post-insert/post-gain stereo part stems in one synthesis pass, with peak/RMS and six-band spectral measurements; no ffmpeg required |
 | `--stems-by group` | Write float stereo group contributions in `stems/`; supports stereo/binaural, rejects ambisonics |
 | `--analysis` | Add float stems, spectrograms, bar/section RMS/peak measurements and an HTML listening page |

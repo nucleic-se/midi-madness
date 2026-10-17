@@ -84,6 +84,14 @@ The software renderer defaults to stereo 48 kHz, 24-bit audio at
 32-bit float ACN/SN3D. The event sidecar is written even with `--no-analysis`;
 it contains exact backend sample timing, source events, spatial lanes and
 recorded control envelopes. See [spatial output](../../packages/render/SPATIAL.md).
+`--events-envelopes none` skips recorded note/hit envelopes, including their
+collection during synthesis; the default is `full`. `--events-parts lead,kick`
+selects the rendered parts included in the sidecar, without changing the audio
+mix or reports. Unselected parts also skip envelope recording. Shared bus and
+listener context remains. Names excluded by `--solo` or `--mute` are rejected.
+Reduced exports retain the version-1 sidecar contract with optional `capture`
+settings; they cannot provide exact recorded envelopes for omitted data. See
+[event export options](../../packages/render/README.md) for details.
 `--stems-by part` captures post-insert/post-gain part stems in one synthesis pass
 and adds peak/RMS and six-band energy to `report.json.partStems`, without ffmpeg.
 Shared returns and master processing are excluded; see [part stem semantics](../../packages/render/README.md#single-pass-part-stems).

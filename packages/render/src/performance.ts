@@ -68,6 +68,8 @@ export type PerformanceData = {
     listener: ListenerLanes;
   };
   tracks: PerformanceTrack[];
+  /** Explicit reduced-export settings. Absent means the original full export. */
+  capture?: { envelopes: 'full' | 'none'; parts: string[] };
   buses: Bus[];
   busControls: Record<string, BusEvent[]>;
   hats: number[];
