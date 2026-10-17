@@ -15,12 +15,13 @@ export function scheduleControls(
   sr: number,
   bpm: number,
   domains: Record<string, readonly [number, number, string?]> = {},
+  omit: readonly string[] = [],
 ): (SynthEvent & { type: 'set' })[] {
   const out: (SynthEvent & { type: 'set' })[] = [],
     auto = realized.automation,
     formEnd = position(realized.song!.extent);
   for (const [name, points] of Object.entries(part.controls)) {
-    if (name === 'cents') continue;
+    if (name === 'cents' || omit.includes(name)) continue;
     // Fast shapes get a 3 kHz grid, including streams that alias to a constant in the coarse IR.
     const fast = fastShapeControl(realized, part.name, name, bpm);
     const phaseAnchor =
@@ -47,19 +48,24 @@ export function scheduleControls(
     )
       .filter((e) => e.locks[name] !== undefined)
       .sort((a, b) => a.nominalOnset.compare(b.nominalOnset));
+    const tick = new R(
+        realized.song!.tempo.numerator,
+        BigInt(sr * 240) * realized.song!.tempo.denominator,
+      ),
+      at = auto.sampled(part.name, name, tick);
+    const ceiling = (time: R) => -Number(time.div(tick).negate().floor());
+    const lockRanges = locks.map((e) => ({
+      start: ceiling(e.nominalOnset),
+      end: ceiling(e.nominalOnset.add(e.gate)),
+      value: e.locks[name],
+    }));
     let last: number | null | undefined;
     for (const sample of [...times]
       .filter((t) => t <= endSample && t < formEnd)
       .sort((a, b) => a - b)) {
-      const time = new R(
-        BigInt(sample) * realized.song!.tempo.numerator,
-        BigInt(sr * 240) * realized.song!.tempo.denominator,
-      );
-      let v = auto.at(part.name, name, time);
-      const lock = locks.findLast(
-        (e) => time.compare(e.nominalOnset) >= 0 && time.compare(e.nominalOnset.add(e.gate)) < 0,
-      );
-      if (lock) v = lock.locks[name];
+      let v = at(sample);
+      const lock = lockRanges.findLast((e) => sample >= e.start && sample < e.end);
+      if (lock) v = lock.value;
       const domain = domains[name] ?? preparedDomain(name);
       const value = v === undefined ? null : Math.max(domain[0], Math.min(domain[1], v));
       if (

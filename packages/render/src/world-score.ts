@@ -118,12 +118,12 @@ export function controlLane(
         });
     }
   } else {
-    const time = (sample: number) =>
-      new R(
-        BigInt(sample) * realized.song!.tempo.numerator,
-        BigInt(sr * 240) * realized.song!.tempo.denominator,
-      );
-    const at = (sample: number) => clamp(auto.at(part.name, name, time(Math.max(0, sample))));
+    const sampled = auto.sampled(
+      part.name,
+      name,
+      new R(realized.song!.tempo.numerator, BigInt(sr * 240) * realized.song!.tempo.denominator),
+    );
+    const at = (sample: number) => clamp(sampled(Math.max(0, sample)));
     const boundaries = new Set<number>([
       ...controls.map((p) => position(p.time)),
       ...auto.boundaries(part.name, name).map(position),

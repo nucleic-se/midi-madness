@@ -62,6 +62,13 @@ retriggers, releases, legato hand-offs and voice stealing, so graphics can seek 
 any time and see the envelope the audio used. Recording only observes; it does
 not change the audio.
 
+Dense `per`/data lanes and arithmetic over them use prepared sample-coordinate
+lookups. Exact fractions still define the timeline, region ownership and lane
+boundaries. Numeric interpolation preserves the exact evaluator's output;
+unsupported expressions or coordinates beyond safe integer arithmetic fall back
+to exact evaluation. This optimization also applies to effect, world-position
+and listener lanes. It does not skip earlier audio when rendering an excerpt.
+
 | Option | Behavior |
 |---|---|
 | `--out PATH` | Choose the WAV path and report directory |

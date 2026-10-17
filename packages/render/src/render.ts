@@ -245,7 +245,8 @@ export function renderSong(source: string, filename: string, options: RenderOpti
       sr,
       bpm,
       prepared.domains[part.name],
-    ).filter((e) => !(world && e.name in worldDomains));
+      world ? Object.keys(worldDomains) : [],
+    );
     const space: PerformanceTrack['space'] = world
       ? { frame: 'world', position: world.position }
       : { frame: 'listener' };

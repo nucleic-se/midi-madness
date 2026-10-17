@@ -9,6 +9,7 @@ import { sectionAt } from './structure.ts';
 import { Rational as R } from '@midi-madness/foundation/time';
 import { perData } from './constants.ts';
 import type { createSignalSampler } from './signals.ts';
+import { numericSignal } from './numeric-signal.ts';
 const zero = new R(0);
 function expression(field: Field): Expression | undefined {
   return field.value.kind === 'sequence'
@@ -150,5 +151,48 @@ export function automation(
       index--;
     return list[index].start;
   }
-  return { at, boundaries, regionStart };
+  /** Prepare an integer-sample lookup. Region edges are converted with exact ceiling,
+   * not rounding, so a control at a fractional sample keeps its original ownership.
+   * Unsupported signals and unsafe numeric coordinates use the exact evaluator.
+   */
+  function sampled(part: string, name: string, tick: R) {
+    if (tick.compare(zero) <= 0) throw new RangeError('Automation sample tick must be positive');
+    const ceiling = (time: R) => -Number(time.div(tick).negate().floor());
+    const entries = (regions.get(part) ?? []).map((region) => {
+      const field = region.fields.get(name),
+        e = field ? expression(field) : undefined;
+      return {
+        region,
+        e,
+        start: ceiling(region.start),
+        end: ceiling(region.end),
+        fast: e ? numericSignal(e, tick, region.reset, structure.settings.meter) : undefined,
+      };
+    });
+    // Keep the original first-match behavior if ever supplied overlapping regions.
+    const ordered = entries.every((e, i) => !i || e.start >= entries[i - 1].end);
+    const safeEdges = entries.every(
+      (e) => Number.isSafeInteger(e.start) && Number.isSafeInteger(e.end),
+    );
+    return (sample: number): number | undefined => {
+      if (!Number.isSafeInteger(sample))
+        throw new RangeError('Automation sample must be a safe integer');
+      sample = Math.max(0, sample);
+      if (!ordered || !safeEdges) return at(part, name, tick.mul(new R(sample)));
+      let lo = 0,
+        hi = entries.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (entries[mid].start <= sample) lo = mid + 1;
+        else hi = mid;
+      }
+      const entry = entries[lo - 1];
+      if (!entry || sample >= entry.end || !entry.e) return;
+      return (
+        entry.fast?.(sample) ??
+        sampler.sample(entry.e, tick.mul(new R(sample)), { ...entry.region, part })
+      );
+    };
+  }
+  return { at, boundaries, regionStart, sampled };
 }
