@@ -1,0 +1,10 @@
+// Authoring example: replace addresses and bank numbers with your synth's manual.
+instrument example-synth
+  voices poly 8
+  range 0-127
+  program bank:cc0+cc32 select:pc base:1
+  banks ram-a:0/0
+  program-lead 500ms
+  param cutoff cc:74 rate:20
+  param attack cc:73
+  param pan cc:10 bipolar

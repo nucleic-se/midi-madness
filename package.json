@@ -1,0 +1,48 @@
+{
+  "name": "midi-madness",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "check": "tsc --noEmit && npm run foundation:check && npm run graphics:check",
+    "mm": "node --experimental-strip-types packages/cli/src/main.ts",
+    "renders:mp3": "node --experimental-strip-types scripts/render-mp3.mjs",
+    "format:code": "prettier --write \"packages/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"packages/**/*.ts\" \"tests/**/*.ts\"",
+    "test:midi-native": "node --experimental-strip-types scripts/midi-loopback.ts",
+    "test:examples": "node --experimental-strip-types --test tests/examples.test.ts tests/midi-smf.test.ts",
+    "graphics:build": "npm run foundation:build && npm run build --workspace @midi-madness/graphics",
+    "graphics:check": "npm run check --workspace @midi-madness/graphics",
+    "foundation:build": "npm run build --workspace @midi-madness/foundation",
+    "foundation:check": "npm run check --workspace @midi-madness/foundation",
+    "foundation:test": "npm run test --workspace @midi-madness/foundation",
+    "prepare": "npm run foundation:build",
+    "pretest": "npm run foundation:build",
+    "precheck": "npm run foundation:build",
+    "premm": "npm run foundation:build",
+    "foundation:watch": "npm run watch --workspace @midi-madness/foundation",
+    "graphics:demo": "npm run graphics:build && node packages/graphics/scripts/demo.mjs",
+    "boundary:check": "node scripts/check-boundary.mjs",
+    "graphics:test": "npm run test --workspace @midi-madness/graphics"
+  },
+  "engines": {
+    "node": ">=22.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "midi-file": "^1.2.4",
+    "prettier": "^3.9.10",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "@julusian/midi": "^3.8.1",
+    "@midi-madness/foundation": "0.2.0"
+  },
+  "description": "A readable music score language with MIDI playback and a software band renderer.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/foundation",
+    "packages/graphics"
+  ]
+}

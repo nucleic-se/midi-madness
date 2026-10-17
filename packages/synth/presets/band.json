@@ -1,0 +1,306 @@
+{
+  "round-bass": {
+    "sub": 0.501,
+    "drive": 0.15,
+    "cutoff": 300,
+    "resonance": 0.2,
+    "keytrack": 0.5,
+    "envamount": 2.5,
+    "env": {
+      "a": 0.001,
+      "d": 0.18,
+      "s": 0,
+      "r": 0.08
+    },
+    "amp": {
+      "a": 0.002,
+      "d": 0.2,
+      "s": 1,
+      "r": 0.06
+    },
+    "velSens": 0.5,
+    "mono": true,
+    "glide": 0.04,
+    "hp": 30,
+    "drift": 1,
+    "trim": 0.32
+  },
+  "acid-303": {
+    "acid": true,
+    "filter": "lp18",
+    "cutoff": 350,
+    "resonance": 0.75,
+    "keytrack": 0.3,
+    "envamount": 3,
+    "env": {
+      "a": 0.003,
+      "d": 0.4,
+      "s": 0,
+      "r": 0.008
+    },
+    "amp": {
+      "a": 0.003,
+      "d": 0.2,
+      "s": 1,
+      "r": 0.008
+    },
+    "drive": 0.25,
+    "mono": true,
+    "glide": 0.06,
+    "hp": 35,
+    "velSens": 0,
+    "trim": 0.34
+  },
+  "saw-pluck": {
+    "cutoff": 600,
+    "resonance": 0.25,
+    "keytrack": 0.6,
+    "envamount": 3,
+    "env": {
+      "a": 0.001,
+      "d": 0.14,
+      "s": 0,
+      "r": 0.3
+    },
+    "amp": {
+      "a": 0.001,
+      "d": 0.25,
+      "s": 0,
+      "r": 0.06
+    },
+    "mono": true,
+    "drift": 1.5,
+    "trim": 0.32
+  },
+  "warm-pad": {
+    "fine1": -6,
+    "osc2": 1,
+    "fine2": 6,
+    "cutoff": 1800,
+    "resonance": 0.1,
+    "keytrack": 0.3,
+    "envamount": 0.5,
+    "env": {
+      "a": 0.8,
+      "d": 1.5,
+      "s": 0.6,
+      "r": 0.3
+    },
+    "amp": {
+      "a": 0.6,
+      "d": 1,
+      "s": 0.85,
+      "r": 1.5
+    },
+    "velSens": 0.3,
+    "lfoRate": 0.15,
+    "lfoDepth": 0.5,
+    "lfoAmount": 0.5,
+    "chorusRate": 0.3,
+    "chorusDepth": 0.5,
+    "chorus": 0.4,
+    "hp": 120,
+    "drift": 2,
+    "trim": 0.16
+  },
+  "stab": {
+    "fine1": -5,
+    "osc2": 1,
+    "fine2": 5,
+    "drive": 0.25,
+    "cutoff": 700,
+    "resonance": 0.3,
+    "keytrack": 0.4,
+    "envamount": 3,
+    "env": {
+      "a": 0.001,
+      "d": 0.22,
+      "s": 0.05,
+      "r": 0.3
+    },
+    "amp": {
+      "a": 0.001,
+      "d": 0.3,
+      "s": 0,
+      "r": 0.12
+    },
+    "hp": 150,
+    "trim": 0.2
+  },
+  "warm-lead": {
+    "wave2": 1,
+    "pw": 0.4,
+    "osc2": 0.708,
+    "fine2": 4,
+    "cutoff": 1600,
+    "resonance": 0.2,
+    "keytrack": 0.6,
+    "envamount": 1.5,
+    "env": {
+      "a": 0.005,
+      "d": 0.4,
+      "s": 0.4,
+      "r": 0.3
+    },
+    "amp": {
+      "a": 0.008,
+      "d": 0.3,
+      "s": 0.85,
+      "r": 0.25
+    },
+    "mono": true,
+    "unison": 2,
+    "detune": 10,
+    "width": 0.4,
+    "vibDelay": 0.3,
+    "vibFade": 0.4,
+    "chorusRate": 0.5,
+    "chorusDepth": 0.3,
+    "chorus": 0.25,
+    "hp": 150,
+    "drift": 1.5,
+    "trim": 0.24
+  },
+  "soft-square": {
+    "wave1": 1,
+    "wave2": 0.3333333333333333,
+    "osc2": 0.501,
+    "coarse2": 12,
+    "filter": "lp12",
+    "cutoff": 3000,
+    "amp": {
+      "a": 0.01,
+      "d": 0.3,
+      "s": 0.7,
+      "r": 0.3
+    },
+    "mono": true,
+    "glide": 0.03,
+    "hp": 200,
+    "trim": 0.25
+  },
+  "round-drone": {
+    "wave1": 0.3333333333333333,
+    "subWave": "sine",
+    "sub": 0.501,
+    "cutoff": 900,
+    "amp": {
+      "a": 2,
+      "d": 1,
+      "s": 1,
+      "r": 3
+    },
+    "velSens": 0.2,
+    "lfoRate": 0.07,
+    "lfoDepth": 0.5,
+    "lfoAmount": 0.6,
+    "mono": true,
+    "drift": 2,
+    "trim": 0.28
+  },
+  "pluck-seq": {
+    "fine1": -4,
+    "osc2": 1,
+    "fine2": 4,
+    "cutoff": 500,
+    "resonance": 0.35,
+    "keytrack": 0.7,
+    "envamount": 3.5,
+    "env": {
+      "a": 0.001,
+      "d": 0.16,
+      "s": 0,
+      "r": 0.3
+    },
+    "amp": {
+      "a": 0.001,
+      "d": 0.22,
+      "s": 0,
+      "r": 0.1
+    },
+    "hp": 180,
+    "trim": 0.25
+  },
+  "noise-sweep": {
+    "trim": 0.18,
+    "noise": 1,
+    "cutoff": 800,
+    "resonance": 0.5,
+    "amp": {
+      "a": 0.05,
+      "d": 0.5,
+      "s": 1,
+      "r": 1.5
+    },
+    "voices": 4,
+    "chorusDepth": 0.4,
+    "chorus": 0.3,
+    "osc1": 0.251188643150958
+  },
+  "fm-keys": {
+    "mode": "fm",
+    "fmRatio": 1,
+    "fmIndex": 2.5,
+    "fmEnv": {
+      "a": 0.001,
+      "d": 0.6,
+      "s": 0.12,
+      "r": 0.4
+    },
+    "fmVel": 0.6,
+    "filter": "lp12",
+    "cutoff": 8000,
+    "amp": {
+      "a": 0.002,
+      "d": 2.5,
+      "s": 0,
+      "r": 0.4
+    },
+    "velSens": 0.8,
+    "voices": 16,
+    "chorusRate": 0.6,
+    "chorusDepth": 0.2,
+    "chorus": 0.2,
+    "trim": 0.3
+  },
+  "ks-pluck": {
+    "mode": "pluck",
+    "pluckDamping": 0.4,
+    "pluckBrightness": 0.6,
+    "pluckDecay": 2,
+    "pluckPick": 0.3,
+    "cutoff": 15000,
+    "filter": "lp12",
+    "amp": {
+      "a": 0.001,
+      "d": 0.3,
+      "s": 1,
+      "r": 0.3
+    },
+    "voices": 12,
+    "velSens": 0.7,
+    "trim": 0.85
+  },
+  "choir": {
+    "filter": "formant",
+    "wave1": 0.6666666666666666,
+    "noise": 0.1259,
+    "cutoff": 5000,
+    "vowel": 0.1,
+    "formantResonance": 0.5,
+    "lfoVowel": 0.15,
+    "lfoRate": 0.1,
+    "amp": {
+      "a": 0.5,
+      "d": 1,
+      "s": 1,
+      "r": 1.2
+    },
+    "chorus": 0.5,
+    "chorusDepth": 0.5,
+    "chorusRate": 0.3,
+    "voices": 8,
+    "velSens": 0.3,
+    "trim": 0.13
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "name": "@midi-madness/graphics",
+  "version": "0.4.1",
+  "private": true,
+  "type": "module",
+  "description": "Reusable data and time evaluation, visual mappings, and composable graphics effects.",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./engine.js": {
+      "types": "./dist/engine.d.ts",
+      "import": "./dist/engine.js"
+    },
+    "./bindings.js": {
+      "types": "./dist/bindings.d.ts",
+      "import": "./dist/bindings.js"
+    },
+    "./types.js": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    },
+    "./mappings.js": {
+      "types": "./dist/mappings.d.ts",
+      "import": "./dist/mappings.js"
+    },
+    "./performance.js": {
+      "types": "./dist/performance.d.ts",
+      "import": "./dist/performance.js"
+    },
+    "./performance-adapter.js": {
+      "types": "./dist/performance-adapter.d.ts",
+      "import": "./dist/performance-adapter.js"
+    },
+    "./parameters.js": {
+      "types": "./dist/parameters.d.ts",
+      "import": "./dist/parameters.js"
+    },
+    "./sources/monument.js": {
+      "types": "./dist/sources/monument.d.ts",
+      "import": "./dist/sources/monument.js"
+    },
+    "./renderers/ribbons.js": {
+      "types": "./dist/renderers/ribbons.d.ts",
+      "import": "./dist/renderers/ribbons.js"
+    },
+    "./renderers/tether.js": {
+      "types": "./dist/renderers/tether.d.ts",
+      "import": "./dist/renderers/tether.js"
+    },
+    "./renderers/harmonic-sky.js": {
+      "types": "./dist/renderers/harmonic-sky.d.ts",
+      "import": "./dist/renderers/harmonic-sky.js"
+    },
+    "./renderers/stage.js": {
+      "types": "./dist/renderers/stage.d.ts",
+      "import": "./dist/renderers/stage.js"
+    },
+    "./renderers/monument.js": {
+      "types": "./dist/renderers/monument.d.ts",
+      "import": "./dist/renderers/monument.js"
+    },
+    "./renderers/composition.js": {
+      "types": "./dist/renderers/composition.d.ts",
+      "import": "./dist/renderers/composition.js"
+    },
+    "./renderers/metaballs.js": {
+      "types": "./dist/renderers/metaballs.d.ts",
+      "import": "./dist/renderers/metaballs.js"
+    },
+    "./renderers/listener-camera.js": {
+      "types": "./dist/renderers/listener-camera.d.ts",
+      "import": "./dist/renderers/listener-camera.js"
+    },
+    "./renderers/environment.js": {
+      "types": "./dist/renderers/environment.d.ts",
+      "import": "./dist/renderers/environment.js"
+    },
+    "./renderers/voice-points.js": {
+      "types": "./dist/renderers/voice-points.d.ts",
+      "import": "./dist/renderers/voice-points.js"
+    },
+    "./renderers/tunnel.js": {
+      "types": "./dist/renderers/tunnel.d.ts",
+      "import": "./dist/renderers/tunnel.js"
+    },
+    "./renderers/performance-effects.js": {
+      "types": "./dist/renderers/performance-effects.d.ts",
+      "import": "./dist/renderers/performance-effects.js"
+    },
+    "./renderers/plasma.js": {
+      "types": "./dist/renderers/plasma.d.ts",
+      "import": "./dist/renderers/plasma.js"
+    },
+    "./renderers/trail.js": {
+      "types": "./dist/renderers/trail.d.ts",
+      "import": "./dist/renderers/trail.js"
+    },
+    "./renderers/inspector.js": {
+      "types": "./dist/renderers/inspector.d.ts",
+      "import": "./dist/renderers/inspector.js"
+    },
+    "./renderers/monolith.js": {
+      "types": "./dist/renderers/monolith.d.ts",
+      "import": "./dist/renderers/monolith.js"
+    },
+    "./renderers/neon.js": {
+      "types": "./dist/renderers/neon.d.ts",
+      "import": "./dist/renderers/neon.js"
+    },
+    "./renderers/resonators.js": {
+      "types": "./dist/renderers/resonators.d.ts",
+      "import": "./dist/renderers/resonators.js"
+    },
+    "./renderers/sweep-bloom.js": {
+      "types": "./dist/renderers/sweep-bloom.d.ts",
+      "import": "./dist/renderers/sweep-bloom.js"
+    },
+    "./renderers/graphics.js": {
+      "types": "./dist/renderers/graphics.d.ts",
+      "import": "./dist/renderers/graphics.js"
+    },
+    "./renderers/effects.js": {
+      "types": "./dist/renderers/effects.d.ts",
+      "import": "./dist/renderers/effects.js"
+    },
+    "./renderers/ribbon-mesh.js": {
+      "types": "./dist/renderers/ribbon-mesh.d.ts",
+      "import": "./dist/renderers/ribbon-mesh.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/three": "0.180.0",
+    "three": "0.180.0",
+    "@midi-madness/foundation": "0.2.0"
+  },
+  "peerDependencies": {
+    "@midi-madness/foundation": "0.2.0",
+    "three": "0.180.0"
+  }
+}

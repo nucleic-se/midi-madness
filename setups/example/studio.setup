@@ -1,0 +1,18 @@
+// Copy this directory, then replace the port with the exact name from mm ports.
+setup example
+  port main = "REPLACE WITH YOUR MIDI OUTPUT" rate:3125 clock:send
+  library ./instruments
+  lead = example-synth port:main ch:1 program:ram-a/100
+    set cutoff 0.35
+  bass = direct port:main ch:7
+    voices mono
+  pad = direct port:main ch:14
+    voices mono
+  lane:kick = example-drums port:main ch:12
+  lane:snare = example-drums port:main ch:12
+  lane:clap = example-drums port:main ch:12
+  lane:hat = example-drums port:main ch:12
+  lane:openhat = example-drums port:main ch:12
+  lane:tom = example-drums port:main ch:12
+  lane:rim = example-drums port:main ch:12
+  lane:perc1 = example-drums port:main ch:12

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shared monument fixture</title>
+  <style>
+    body {
+      margin: 0;
+      background: #10131c;
+      color: #e4e9f4;
+      font: 15px system-ui;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+    aside {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      background: #161b29ee;
+      padding: 18px;
+      border-radius: 12px;
+      width: 290px;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 8px;
+    }
+    p {
+      line-height: 1.5;
+      color: #b9c3d5;
+    }
+    label {
+      display: block;
+      margin: 12px 0;
+    }
+    input {
+      width: 100%;
+    }
+    button {
+      padding: 8px 12px;
+      background: #343f5a;
+      color: white;
+      border: 0;
+      border-radius: 5px;
+    }
+    output {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/three/build/three.module.js",
+        "three/addons/": "/three/examples/jsm/",
+        "@midi-madness/foundation/parameters": "/foundation/parameters.js",
+        "@midi-madness/foundation/curves": "/foundation/curves.js",
+        "@midi-madness/foundation/envelopes": "/foundation/envelopes.js",
+        "@midi-madness/foundation/time": "/foundation/time.js"
+      }
+    }
+  </script>
+  <canvas aria-label="Monument shared-depth fixture"></canvas>
+  <aside>
+    <h1>Shared monument fixture</h1>
+    <p>
+      Synthetic notes, borrowed camera and host lighting. The two opaque columns test world depth
+      through the crown and plasma.
+    </p>
+    <button id="play">Play</button> <button id="reload">Reload resources</button>
+    <button id="capture">Capture PNG</button>
+    <a id="capture-link" download="monument.png" hidden>Download captured frame</a>
+    <img id="capture-preview" alt="Captured monument frame" hidden style="width: 100%" />
+    <label
+      >Media time <output id="time-label">0.00 s</output
+      ><input id="time" type="range" min="0" max="12" step="0.01" value="0"
+    /></label>
+    <label
+      >Camera orbit <input id="orbit" type="range" min="-180" max="180" step="1" value="25"
+    /></label>
+    <label
+      >Exposure <input id="exposure" type="range" min="0.25" max="2" step="0.05" value="1"
+    /></label>
+    <p id="status" role="status">Loading…</p>
+  </aside>
+  <script>
+    addEventListener('error', (event) => {
+      const status = document.querySelector('#status');
+      status.dataset.error = 'runtime';
+      status.textContent = event.message || 'Module loading failed';
+    });
+  </script>
+  <script type="module" src="/monument.mjs"></script>
+</html>

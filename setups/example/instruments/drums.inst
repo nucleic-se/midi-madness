@@ -1,0 +1,12 @@
+// Example eight-track note map. Check these notes against your drum machine.
+instrument example-drums
+  voices drums
+  lanes note-map
+  lane kick note:36
+  lane snare note:37
+  lane clap note:38
+  lane hat note:39
+  lane openhat note:40
+  lane tom note:41
+  lane rim note:42
+  lane perc1 note:43

@@ -1,0 +1,45 @@
+{
+  "name": "@midi-madness/foundation",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless performance time and evaluation shared by midi-madness and Dancer.",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./time": {
+      "types": "./dist/time.d.ts",
+      "import": "./dist/time.js"
+    },
+    "./curves": {
+      "types": "./dist/curves.d.ts",
+      "import": "./dist/curves.js"
+    },
+    "./envelopes": {
+      "types": "./dist/envelopes.d.ts",
+      "import": "./dist/envelopes.js"
+    },
+    "./parameters": {
+      "types": "./dist/parameters.d.ts",
+      "import": "./dist/parameters.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepack": "npm run build",
+    "watch": "tsc -p tsconfig.json --watch"
+  },
+  "engines": {
+    "node": ">=22.6"
+  }
+}

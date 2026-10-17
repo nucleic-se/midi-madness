@@ -1,0 +1,23 @@
+// Software band. Normalized score controls; no MIDI port or channel limit.
+setup band
+  engine audio = software 48kHz
+  drums = drums engine:audio kit:808-909
+  bass = synth engine:audio preset:round-bass
+  acid = synth engine:audio preset:acid-303
+  arp = synth engine:audio preset:saw-pluck
+  pads = synth engine:audio preset:warm-pad
+  chords = synth engine:audio preset:stab
+  lead = synth engine:audio preset:warm-lead
+  counter = synth engine:audio preset:soft-square
+  drone = synth engine:audio preset:round-drone
+  seq = synth engine:audio preset:pluck-seq
+  fx = synth engine:audio preset:noise-sweep
+  keys = synth engine:audio preset:fm-keys
+  role:low = synth engine:audio preset:round-bass
+  role:front = synth engine:audio preset:warm-lead
+  role:bed = synth engine:audio preset:warm-pad
+  role:color = synth engine:audio preset:pluck-seq
+  role:high = synth engine:audio preset:soft-square
+  role:pulse = synth engine:audio preset:saw-pluck
+  * = synth engine:audio preset:init
+  lane:* = drums engine:audio kit:808-909

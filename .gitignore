@@ -1,0 +1,47 @@
+# Dependencies and build/cache output
+node_modules/
+dist/
+__pycache__/
+*.pyc
+*.tsbuildinfo
+
+# Generated audio, MIDI and analysis
+renders/
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.mid
+*.midi
+
+# Defense against accidental copies; private work belongs in a separate repository
+archive/
+
+# Unpromoted scores, manuscripts and audio/graphics experiments
+/private/
+
+# Local score feedback, approvals and hardware overrides
+*.mm.feedback.json
+*.mm.feedback/
+*.mm.accepted/
+setups/local/
+*.local.setup
+.env
+.env.*
+!.env.example
+
+# OS/editor leftovers
+.DS_Store
+._*
+*~
+*.swp
+*.swo
+
+
+# External composition and production workflows
+/scripts/compositions/
+/scripts/glasshouse/
+/scripts/ideas.mjs
+/scripts/mixmap.mjs
+/scripts/upload-mp3.mjs
+/scripts/mp3-index.mjs

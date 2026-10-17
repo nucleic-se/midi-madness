@@ -1,0 +1,91 @@
+import type { Expression } from './ast.ts';
+import type { Span } from './diag.ts';
+import type { Key } from './pitch.ts';
+import type { Rational } from '@midi-madness/foundation/time';
+import type { TimedValue } from './timed.ts';
+export type Frame = {
+  name: string;
+  sectionName?: string;
+  kind: string;
+  path: string;
+  ordinal: number;
+  onset: Rational;
+  extent: Rational;
+  modulation: number;
+  key: Key;
+  label?: string;
+  source: Span;
+  expression: Expression;
+  children: Frame[];
+};
+export type Bar = {
+  number: number;
+  sectionBar: number;
+  onset: Rational;
+  span: Rational;
+  section: string;
+  path: string;
+};
+export type Settings = {
+  title: string;
+  tempo: Rational;
+  meter: readonly [number, number];
+  key: Key;
+  seed: bigint;
+  humanizeMs: Rational;
+  dynamics: 'energy' | 'flat';
+};
+export type Structure = {
+  settings: Settings;
+  extent: Rational;
+  sections: Frame[];
+  frames: Frame[];
+  bars: Bar[];
+  material: TimedValue;
+};
+export type Event = {
+  generator?: import('./note-generators.ts').NoteGenerator;
+  grain?: boolean;
+  panOffset?: number;
+  paths?: import('./note-paths.ts').NotePath[];
+  group?: string;
+  id: string;
+  part: string;
+  nominalOnset: Rational;
+  performedOnset: Rational;
+  writtenSpan: Rational;
+  gate: Rational;
+  pitch: number | null;
+  velocity: number;
+  locks: Record<string, number>;
+  path: string;
+  provenance: Record<string, unknown>;
+};
+export type Suppression = {
+  part: string;
+  onset: Rational;
+  reason: string;
+  source: Span;
+  path: string;
+  measured?: Record<string, unknown>;
+};
+export type Control = { time: Rational; value: number | null; source: string };
+export type PartIR = {
+  name: string;
+  kind: string;
+  role: string;
+  lane?: string;
+  events: Event[];
+  controls: Record<string, Control[]>;
+  suppressions: Suppression[];
+};
+export type SongIR = {
+  title: string;
+  tempo: Rational;
+  meter: readonly [number, number];
+  seed: string;
+  extent: Rational;
+  bars: Bar[];
+  sections: Frame[];
+  parts: PartIR[];
+};
