@@ -1,5 +1,12 @@
 # Graphics
 
+Version 0.5.1 adds a browser-free piano-roll frame renderer through `video.js`.
+`createPianoRoll(events, options).frame(mediaSeconds)` returns RGB24 pixels from
+the version-1 performance sidecar, with scheduled note gates and drum markers.
+It does not own audio or an encoder. The CLI's `mm video` command combines these
+frames and software-rendered audio into an MP4 using local FFmpeg. See the
+[video guide](../../docs/guides/RENDERING_VIDEO.md) for usage and limitations.
+
 Shared evaluation comes from `@midi-madness/foundation` (currently 0.2.0):
 interpolation and `ControlLane` are imported from its `/curves` entry point,
 and numeric bindings use its `/parameters` validation/resolution. Import those

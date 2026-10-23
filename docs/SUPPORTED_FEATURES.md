@@ -19,6 +19,17 @@ fields remain inherited; generated template/loop targets are unsupported. See
 
 See [Language reference](reference/LANGUAGE.md) for syntax and [Literal profile 1](reference/LITERAL_V1.md) for compatibility rules.
 
+## Video
+
+`mm video` renders a score to an H.264/AAC MP4 with an animated piano roll,
+retaining the matching WAV, version-1 performance JSON and audio reports.
+It requires local FFmpeg with libx264 and AAC encoders; no browser or GPU is
+required. Dimensions, frame rate and ordinary score excerpts are configurable.
+The first preset shows scheduled notes and drum attacks, not DSP envelopes,
+pitch paths or spatial motion. Stereo and binaural audio are supported;
+ambisonic movies and arbitrary Three.js scene exports are not yet supported.
+See [Rendering video](guides/RENDERING_VIDEO.md).
+
 ## Software audio
 
 The renderer supports built-in synth and drum presets, including analog/FM sounds, a 303-style voice, plucked strings and choir. Controls cover oscillators, filters, two LFOs, modulation envelopes, mono/poly/unison, microtuning, per-note locks and paths, ratchets and synth grains.

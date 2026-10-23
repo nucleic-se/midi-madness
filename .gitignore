@@ -36,12 +36,3 @@ setups/local/
 *~
 *.swp
 *.swo
-
-
-# External composition and production workflows
-/scripts/compositions/
-/scripts/glasshouse/
-/scripts/ideas.mjs
-/scripts/mixmap.mjs
-/scripts/upload-mp3.mjs
-/scripts/mp3-index.mjs

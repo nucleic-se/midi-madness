@@ -17,8 +17,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Install native MIDI build dependencies
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - name: Install native MIDI and video dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ffmpeg
       - run: npm ci
       - run: npm run boundary:check
       - run: npm run check

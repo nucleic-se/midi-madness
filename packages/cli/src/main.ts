@@ -56,6 +56,7 @@ const commands = [
   'format',
   'export',
   'render',
+  'video',
   'pack',
   'ports',
   'play',
@@ -76,6 +77,9 @@ const valueFlags = new Set([
   '--clock',
   '--out',
   '--tail',
+  '--width',
+  '--height',
+  '--fps',
   '--stems-by',
   '--events-envelopes',
   '--events-parts',
@@ -113,6 +117,7 @@ const commandFlags: Record<string, readonly string[]> = {
   format: ['--setup'],
   export: ['--setup', '--midi', '--midi-dir', '--cc', '--bend-range'],
   pack: ['--setup', '--out', '--tail', '--cc', '--bend-range'],
+  video: ['--setup', '--from', '--bars', '--out', '--tail', '--width', '--height', '--fps'],
   render: [
     '--setup',
     '--from',
@@ -164,7 +169,7 @@ function validateOptions() {
     throw new RangeError('--to supports section');
   if (option('--clock') && !['send', 'off'].includes(option('--clock')!))
     throw new RangeError('--clock must be send or off');
-  if (['render', 'pack'].includes(command)) {
+  if (['render', 'pack', 'video'].includes(command)) {
     if (option('--events-envelopes') && !['full', 'none'].includes(option('--events-envelopes')!))
       throw new RangeError('--events-envelopes must be full or none');
     if (
@@ -518,6 +523,27 @@ async function run() {
   }
   if (command === 'export' && (args.includes('--cc') || option('--bend-range')))
     throw new RangeError('--cc and --bend-range require --midi-dir');
+  if (command === 'video') {
+    const { renderVideo } = await import('./commands/video.ts');
+    const result = await renderVideo(loadedScore, file, {
+      out: option('--out'),
+      setup: option('--setup'),
+      from: option('--from'),
+      bars: option('--bars'),
+      tail: option('--tail') === undefined ? undefined : Number(option('--tail')),
+      width: option('--width') === undefined ? undefined : Number(option('--width')),
+      height: option('--height') === undefined ? undefined : Number(option('--height')),
+      fps: option('--fps') === undefined ? undefined : Number(option('--fps')),
+      progress: !json && !quiet ? (text) => process.stderr.write(`${text}\n`) : undefined,
+    });
+    output(
+      { rendered: true, ...result },
+      [],
+      '',
+      `MP4: ${result.destination}\nWAV: ${result.audio}\nEvents: ${result.performancePath}`,
+    );
+    return;
+  }
   if (command === 'render') {
     const { renderSong } = await import('../../render/src/render.ts');
     const tail = option('--tail') === undefined ? undefined : Number(option('--tail'));

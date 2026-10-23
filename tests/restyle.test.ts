@@ -356,3 +356,14 @@ test('new conditional sound controls preserve events and dangling replaced FX re
       /Unknown bus parameter/,
     );
   }));
+
+test('sound controls written by their score names can be restyled', () =>
+  fixture((_, write) => {
+    const file = write(
+      'resonance.mm',
+      layer('restyle part lead\n  resonance = per 1/8: 0.2, 0.4, 0.3\n  keytrack = 1\n'),
+    );
+    const prepared = prepareSoftwareScore(loadScore(file).source);
+    assert.match(prepared.coreSource, /resonance = per 1\/8: 0\.2, 0\.4, 0\.3/);
+    assert.deepEqual(music(loadScore(file).source), music(base));
+  }));

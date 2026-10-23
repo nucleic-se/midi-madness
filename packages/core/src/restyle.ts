@@ -25,7 +25,8 @@ function blocks(rows: SourceRow[]): SourceRow[][] {
 }
 const soundControls = new Set(
   (
-    'cutoff res envamount attack decay sustain release level level.db pan drive wave detune ' +
+    'cutoff res resonance envamount attack decay sustain release level level.db pan drive wave ' +
+    'detune tune keytrack ' +
     'noise sub glide reverb delay fold pw vowel velSens sync bend.range ' +
     'filterattack filterdecay filtersustain filterrelease'
   ).split(' '),

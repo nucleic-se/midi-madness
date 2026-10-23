@@ -9,7 +9,7 @@ Commands below use `mm` as shorthand for `npm run mm --` from the repository roo
 - Check and inspect: check, expand, roll, explain, at, metrics, query.
 - Compare and record: diff, accept, feedback.
 - Edit layout or inspect fixes: format, fix.
-- Produce output: render, export, play, ports, panic.
+- Produce output: render, video, export, play, ports, panic.
 - Get reference information: help, schema.
 
 See the [command table](#2-commands) for flags and files written. Task guides cover
@@ -50,6 +50,7 @@ Read-only commands can be used from an editor, script or interactive session.
 | `mm schema <command>` | JSON envelope schema labelled for the command; result payloads are generic object/array values. | — |
 | `mm query <song> --from <t> --to <t>` | Windowed realization (docs/reference/LANGUAGE.md §3.4); for checking query invariance. | — |
 | `mm render <song> [--from <section\|bar> --bars N] [--out mix.wav] [--stems-by group\|part] [--no-analysis]` | Software audio rendering; default setup `setups/band/band.setup`. | WAV and minimal reports |
+| `mm video <song> [--out movie.mp4] [--setup software.setup] [--from <section\|bar> --bars N] [--tail seconds] [--width 1280] [--height 720] [--fps 30]` | Software audio plus an offline piano-roll movie; requires local FFmpeg. See [video rendering](../guides/RENDERING_VIDEO.md). | H.264/AAC MP4, WAV, version-1 events and reports in `<movie-basename>.assets/` |
 | `mm export <song> [--setup <setup>] --midi out.mid` | MIDI file through instrument definitions and a setup. | MIDI file |
 | `mm export <song> --midi-dir directory [--setup software.setup] [--cc] [--bend-range N]` | Hardware-free per-part MIDI from the software performance; representation-loss report. | MIDI directory |
 | `mm pack <song> --out directory [--setup software.setup] [--tail seconds] [--cc] [--bend-range N]` | Matching dry part stems, complete bus returns, MIDI and draft mix; validates file alignment. See [DAW export](../guides/EXPORTING_TO_A_DAW.md). | Remix directory |

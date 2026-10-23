@@ -1,6 +1,6 @@
 {
   "name": "@midi-madness/graphics",
-  "version": "0.4.1",
+  "version": "0.5.1",
   "private": true,
   "type": "module",
   "description": "Reusable data and time evaluation, visual mappings, and composable graphics effects.",
@@ -131,6 +131,10 @@
     "./renderers/ribbon-mesh.js": {
       "types": "./dist/renderers/ribbon-mesh.d.ts",
       "import": "./dist/renderers/ribbon-mesh.js"
+    },
+    "./video.js": {
+      "types": "./dist/video.d.ts",
+      "import": "./dist/video.js"
     }
   },
   "files": [

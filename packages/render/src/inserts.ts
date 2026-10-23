@@ -17,6 +17,8 @@ export function settingValue(type: EffectType, field: string, value: string, bpm
   let n: number;
   if ('choices' in d && d.choices?.includes(value)) n = d.choices.indexOf(value);
   else if ('unit' in d && d.unit === 'time' && value.includes('/')) n = noteSeconds(value, bpm);
+  else if (!('unit' in d) && /^-?\d+\/\d+$/.test(value))
+    n = Number(value.split('/')[0]) / Number(value.split('/')[1]); // ratios (freeze speed 1/2)
   else if ('unit' in d && d.unit === 'hz' && value.includes('/')) n = 1 / noteSeconds(value, bpm);
   else if ('unit' in d && d.unit === 'hz' && /^[A-G][#b]?-?\d+$/.test(value)) {
     const m = value.match(/^([A-G])([#b]?)(-?\d+)$/)!;
@@ -64,7 +66,7 @@ export function parseInsertStage(text: string, bpm: number, insert = true): Stag
   if (insert) {
     stage.params.mix = ['delay'].includes(type)
       ? 0.25
-      : ['chorus', 'comb', 'ring', 'phaser', 'flanger'].includes(type)
+      : ['chorus', 'comb', 'ring', 'phaser', 'flanger', 'reverse', 'freeze'].includes(type)
         ? 0.5
         : 1;
     stage.params.bypass = 0;
@@ -129,8 +131,8 @@ export function insertLiteral(stage: Stage, field: string, text: string, bpm: nu
   const choices = effectParams[stage.type][field]?.choices;
   if (
     choices?.includes(value) ||
-    /^[-+]?\d+(?:\.\d+)?(?:ms|s|Hz|kHz|oct|dB)$/.test(value) ||
-    /^\d+\/\d+(?:\.|t)?$/.test(value) ||
+    /^[-+]?\d+(?:\.\d+)?(?:ms|s|Hz|kHz|oct|dB|%)$/.test(value) ||
+    /^-?\d+\/\d+(?:\.|t)?$/.test(value) ||
     /^[A-G][#b]?-?\d+$/.test(value) ||
     (['bits', 'voices', 'stages'].includes(field) && /^\d+$/.test(value))
   ) {

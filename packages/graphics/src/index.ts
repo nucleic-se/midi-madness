@@ -28,3 +28,4 @@ export * from './performance-adapter.js';
 export * from './renderers/monument.js';
 export * from './sources/monument.js';
 export * from './parameters.js';
+export * from './video.js';

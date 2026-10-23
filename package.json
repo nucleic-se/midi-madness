@@ -1,6 +1,6 @@
 {
   "name": "midi-madness",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,10 +17,10 @@
     "foundation:build": "npm run build --workspace @midi-madness/foundation",
     "foundation:check": "npm run check --workspace @midi-madness/foundation",
     "foundation:test": "npm run test --workspace @midi-madness/foundation",
-    "prepare": "npm run foundation:build",
+    "prepare": "npm run graphics:build",
     "pretest": "npm run foundation:build",
     "precheck": "npm run foundation:build",
-    "premm": "npm run foundation:build",
+    "premm": "npm run graphics:build",
     "foundation:watch": "npm run watch --workspace @midi-madness/foundation",
     "graphics:demo": "npm run graphics:build && node packages/graphics/scripts/demo.mjs",
     "boundary:check": "node scripts/check-boundary.mjs",
@@ -37,7 +37,8 @@
   },
   "dependencies": {
     "@julusian/midi": "^3.8.1",
-    "@midi-madness/foundation": "0.2.0"
+    "@midi-madness/foundation": "0.2.0",
+    "@midi-madness/graphics": "0.5.1"
   },
   "description": "A readable music score language with MIDI playback and a software band renderer.",
   "license": "MIT",

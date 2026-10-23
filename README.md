@@ -1,6 +1,7 @@
 # midi-madness
 
-Write music as text. Check and inspect a score, render it with software instruments, export a MIDI file or play it through a MIDI setup.
+Write music as text. Check and inspect a score, render audio and musical event data,
+make a video with matching audio, export a MIDI file or play it through a MIDI setup.
 
 A score describes notes, rhythms, harmony, sections, parts and automation. Software sounds and MIDI device mappings provide two ways to hear the same musical material.
 
@@ -43,6 +44,7 @@ On Linux, installing the native MIDI dependency may require build tools and ALSA
 |---|---|
 | Check a software score | `npm run mm -- check song.mm --setup setups/band/band.setup` |
 | Render a WAV | `npm run mm -- render song.mm` |
+| Render an MP4 with audio | `npm run mm -- video song.mm --out renders/song.mp4` ([video guide](docs/guides/RENDERING_VIDEO.md); requires FFmpeg) |
 | Render an excerpt | `npm run mm -- render song.mm --from "bar 1" --bars 4` |
 | Audition an approximate excerpt | `npm run mm -- render song.mm --from "bar 65" --bars 4 --preview --warmup-bars 2` ([limitations](packages/render/README.md#approximate-excerpt-previews)) |
 | Inspect a part | `npm run mm -- roll song.mm --part lead --bars 1..4` |

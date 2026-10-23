@@ -17,7 +17,10 @@ export type EffectType =
   | 'autopan'
   | 'gate'
   | 'comb'
-  | 'ring';
+  | 'ring'
+  | 'reverse'
+  | 'freeze'
+  | 'pan';
 export type Param = {
   initial: number;
   min: number;
@@ -113,6 +116,18 @@ export const effectParams: Record<EffectType, Record<string, Param>> = {
     rate: { ...rate(), initial: 0.2, max: 20 },
   },
   ring: { hz: { ...rate(), initial: 440 }, ratio: p(0, 0, 32) },
+  // Plays its input backwards in consecutive segments (output = the previous segment reversed).
+  reverse: { segment: time(0.25, 0.01, 4), fade: time(0.005, 0.0005, 0.1) },
+  // Records continuously; while hold >= 0.5 it stops recording and loops the last `length` of audio.
+  freeze: {
+    length: time(1, 0.02, 16),
+    hold: p(0),
+    speed: p(1, -4, 4),
+    start: p(0),
+    fade: time(0.01, 0.0005, 0.2),
+  },
+  // Static placement: width folds the input toward mono, then an equal-power balance places it.
+  pan: { position: p(0, -1, 1), width: p(1) },
 };
 export function nativeEffectValue(type: EffectType, field: string, v: number): number {
   if (field === 'mix' || field === 'bypass') return Math.max(0, Math.min(1, v));
@@ -162,9 +177,13 @@ export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) 
       ? sr * 10 + 2
       : type === 'comb'
         ? sr * 2 + 2
-        : type === 'chorus' || type === 'flanger'
-          ? Math.ceil(sr * 0.05)
-          : 2;
+        : type === 'reverse'
+          ? sr * 8 + 4
+          : type === 'freeze'
+            ? sr * 17 + 4
+            : type === 'chorus' || type === 'flanger'
+              ? Math.ceil(sr * 0.05)
+              : 2;
   const l = new Float32Array(size),
     r = new Float32Array(size);
   const low = new Float64Array(4),
@@ -187,6 +206,28 @@ export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) 
     oldCutoff = -1,
     oldTone = -1,
     toneCoef = 0;
+  // reverse/freeze state: absolute write counter, reverse segment start, freeze loop and output envelope
+  let count = 0,
+    segStart = 0,
+    lastLoud = -Infinity,
+    loopEnd = 0,
+    loopLen = 1,
+    readPos = 0,
+    holding = false,
+    holdGain = 0;
+  const at = (buf: Float32Array, abs: number) => {
+    const i = Math.floor(abs),
+      f = abs - i,
+      n = buf.length,
+      x = (k: number) => buf[(((i + k) % n) + n) % n];
+    const y0 = x(-1),
+      y1 = x(0),
+      y2 = x(1),
+      y3 = x(2);
+    return (
+      y1 + 0.5 * f * (y2 - y0 + f * (2 * y0 - 5 * y1 + 4 * y2 - y3 + f * (3 * (y1 - y2) + y3 - y0)))
+    );
+  };
   let randomState = seed || 1;
   const random = () => {
     randomState ^= randomState << 13;
@@ -195,6 +236,9 @@ export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) 
     return (randomState >>> 0) / 4294967296;
   };
   const smooth = 1 - Math.exp(-1 / (sr * 0.02));
+  const panSmooth = 1 - Math.exp(-1 / (sr * 0.005));
+  let panPosition = NaN,
+    panWidth = NaN;
   const filterChannel = (x: number, index: number, k: number, mode: number) => {
     const a = 1 / (1 + g * (g + k));
     const v1 = a * (band[index] + g * (x - low[index])),
@@ -226,6 +270,8 @@ export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) 
             ...allpassR.map(Math.abs),
           ) > 0.00001
         );
+      if (type === 'freeze') return holdGain > 0.00001;
+      if (type === 'reverse') return count - lastLoud < 2 * params.segment * sr + 2;
       if (!['delay', 'comb', 'chorus', 'flanger'].includes(type)) return false;
       const length =
         type === 'chorus' || type === 'flanger'
@@ -239,6 +285,11 @@ export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) 
     },
     reset() {
       equalizer?.reset();
+      count = segStart = loopEnd = 0;
+      lastLoud = -Infinity;
+      loopLen = 1;
+      readPos = holdGain = 0;
+      holding = false;
       l.fill(0);
       r.fill(0);
       low.fill(0);
@@ -257,7 +308,60 @@ export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) 
       }
       let wl = left,
         wr = right;
-      if (type === 'delay') {
+      if (type === 'reverse') {
+        const n = l.length,
+          N = Math.max(2, Math.round(params.segment * sr)),
+          F = Math.max(1, params.fade * sr);
+        l[count % n] = left;
+        r[count % n] = right;
+        if (Math.abs(left) + Math.abs(right) > 0.00001) lastLoud = count;
+        if (count - segStart >= N) segStart = count;
+        const k = count - segStart,
+          src = segStart - 1 - k,
+          env = Math.min(1, (k + 1) / F, (N - k) / F);
+        wl = src >= 0 ? l[src % n] * env : 0;
+        wr = src >= 0 ? r[src % n] * env : 0;
+        count++;
+      } else if (type === 'freeze') {
+        const n = l.length,
+          F = Math.max(1, params.fade * sr);
+        const hold = params.hold >= 0.5;
+        if (hold && !holding) {
+          loopEnd = count;
+          loopLen = Math.max(2, Math.min(n - 4, Math.round(params.length * sr), count));
+          readPos = clamp(params.start, 0, 1) * loopLen;
+        }
+        holding = hold;
+        if (!hold) {
+          l[count % n] = left;
+          r[count % n] = right;
+          count++;
+        }
+        holdGain += (hold ? 1 - holdGain : -holdGain) / F;
+        if (holdGain > 0.00001 && loopLen > 2) {
+          // Wrap crossfades: forwards the loop end fades into the audio just before the loop;
+          // backwards the loop start fades into the end, which then wraps a fade short of it.
+          const base = loopEnd - loopLen,
+            p = readPos,
+            X = Math.min(F, loopLen / 2);
+          let gl = at(l, base + p),
+            gr = at(r, base + p);
+          if (params.speed >= 0 && p > loopLen - X) {
+            const x = (p - (loopLen - X)) / X;
+            gl = gl * Math.sqrt(1 - x) + at(l, base + p - loopLen) * Math.sqrt(x);
+            gr = gr * Math.sqrt(1 - x) + at(r, base + p - loopLen) * Math.sqrt(x);
+          } else if (params.speed < 0 && p < X) {
+            const x = 1 - p / X;
+            gl = gl * Math.sqrt(1 - x) + at(l, base + p + loopLen - X) * Math.sqrt(x);
+            gr = gr * Math.sqrt(1 - x) + at(r, base + p + loopLen - X) * Math.sqrt(x);
+          }
+          wl = gl * holdGain;
+          wr = gr * holdGain;
+          readPos += params.speed;
+          if (readPos >= loopLen) readPos -= loopLen;
+          if (readPos < 0) readPos += loopLen - X;
+        } else wl = wr = 0;
+      } else if (type === 'delay') {
         smoothTime += smooth * (params.time - smoothTime);
         const d = clamp(smoothTime * sr, 1, size - 2);
         wl = tap(l, pos, d);
@@ -431,6 +535,19 @@ export function createProcessor(stage: Stage, sr: number, seed = 1, offset = 0) 
         const gain = 1 - params.depth * (1 - wave(phase, params.shape, seed)) * 0.5;
         wl *= gain;
         wr *= gain;
+      } else if (type === 'pan') {
+        // About 5 ms of smoothing, so a stepped position or width does not click.
+        if (Number.isNaN(panPosition)) {
+          panPosition = params.position;
+          panWidth = params.width;
+        }
+        panPosition += panSmooth * (params.position - panPosition);
+        panWidth += panSmooth * (params.width - panWidth);
+        const mid = (wl + wr) * 0.5,
+          side = (wl - wr) * 0.5 * panWidth,
+          angle = ((clamp(panPosition, -1, 1) + 1) * Math.PI) / 4;
+        wl = (mid + side) * Math.cos(angle) * Math.SQRT2;
+        wr = (mid - side) * Math.sin(angle) * Math.SQRT2;
       } else if (type === 'autopan') {
         const pl = wave(phase, params.shape, seed) * params.depth;
         const pr = wave(phase + params.phase, params.shape, seed) * params.depth;
@@ -506,7 +623,9 @@ export function createInsertChain(
         n.bypass += smooth * (p.bypass - n.bypass);
         n.processor.process(l * (1 - n.bypass), r * (1 - n.bypass), sample, noteHz);
         // Bypass stops input, while delayed audio already in the processor survives.
-        const tail = ['delay', 'comb', 'flanger', 'phaser'].includes(n.stage.type);
+        const tail = ['delay', 'comb', 'flanger', 'phaser', 'reverse', 'freeze'].includes(
+          n.stage.type,
+        );
         const wet = n.mix * (tail ? 1 : 1 - n.bypass);
         const dry = 1 - n.mix * (1 - n.bypass);
         l = l * dry + n.processor.left * wet;

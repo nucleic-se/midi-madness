@@ -126,3 +126,60 @@ feedback automation and pre-fader fades:
 ```sh
 npm run mm -- render tests/fixtures/render/effects.mm
 ```
+
+## Place a bus: pan
+
+`pan` gives a bus (or an insert chain) a fixed place in the stereo field that can be
+automated, where `autopan` only oscillates.
+
+```text
+fx
+  bus roll = freeze length 1/64 -> pan position -30%, width 60% -> send hall 10%
+bus roll
+  pan.position = per 1 bar: 0%, 0%, -40%, 0%, 50%
+```
+
+`position` runs from −100% (left) to 100% (right) with an equal-power balance: a
+mono signal keeps its power wherever it is placed, and centre is unity. Moving
+toward one side fades the far channel, so a wide signal narrows as it moves out.
+`width` (0–100%, default 100%) first scales the input's side signal: 0% folds it to
+mono, so a stereo return can be placed as a single point. Position and width are
+smoothed over about 5 ms, so stepped automation does not click; write a sweep as a
+shape, for example `pan.position = across 1 bar: ramp -60%..60%`. As an insert,
+`pan` defaults to 100% mix.
+
+In bus automation, percent values are real values for any stage (`-30%` is
+position −0.3), while bare numbers stay normalized to the stage's range.
+
+## Reverse and freeze (memory stages)
+
+Two small stages for working with the recent sound of a performance. Both work on
+buses and as inserts (insert mix defaults to 50%).
+
+```text
+fx
+  bus back = reverse segment 1/4, fade 5ms -> delay time 3/16, feedback 40%, pingpong 100%
+  bus remnant = freeze length 1/1, speed 1/2, fade 10ms
+bus remnant
+  freeze.hold = per 1 bar: 0, 0, 1, 1
+```
+
+`reverse` plays its input backwards in consecutive segments: each segment is output
+reversed while the next one is recorded, so the answer arrives one segment after
+the call. `segment` (10 ms–4 s, musical values allowed) and `fade` (edge fades).
+
+`freeze` records continuously and outputs nothing while `hold` is below 0.5. When
+`hold` rises it stops recording and loops the last `length` (20 ms–16 s) of audio:
+`speed` is a signed playback rate (−4…4, ratios such as `1/2` or `3/2` allowed;
+negative plays backwards; 0 holds the read position), `start` sets the loop start
+(0–1 of `length`), and `fade` sets the hold fade and the loop-wrap crossfade.
+Stage times take note values (`1/1` is a whole note, one bar of 4/4) or `ms`/`s`;
+`N bars` is not accepted here. In bus automation, write speeds as ratios
+(`freeze.speed = per 1 bar: 1/1, -1/2, 3/2`): bare numbers are normalized like other
+bus fields, so `freeze.speed = 1` means 4× and `0.5` means stopped.
+Lowering `hold` fades the loop out and resumes recording. A held freeze keeps
+sounding until `hold` drops or the bus return reaches zero; renders report it
+at the tail limit. Feed a single note into a freeze bus with a note throw
+(`{send.NAME 1}`) to remember only that note. Freeze has no feedback, so its
+level is the recorded level. Excerpt previews start these stages empty at the
+warm-up boundary.

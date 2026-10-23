@@ -34,6 +34,8 @@ export function help(topic = '') {
     per: 'cutoff = per 2 bars: 0.2, 0.8\ncutoff = per 2 bars smooth: 0.2, 0.8\nplays hits beat.fast(per 1 bar: 1, 2, 1.5, 1)\n\nConstant scalar values hold for the given span and loop from the use reset. Smooth interpolates, including the wrap. Pattern rates are sampled at cycle starts and restart at step boundaries.',
     render:
       'mm render song.mm [--setup setups/band/band.setup] [--from section|bar N --bars N] [--preview --warmup-bars N] [--solo part,part] [--mute part,part] [--out mix.wav] [--tail seconds] [--stems-by group|part] [--events-envelopes full|none] [--events-parts part,part] [--analysis] [--no-analysis]\nWrites a 48kHz draft WAV (stereo by default; optional binaural or first-order ambisonic) and minimal reports to renders/<song>/. --preview requires --from and --bars: approximate audio starts with fresh DSP, with 2 bars of warm-up by default (nonnegative integer). Earlier held notes, hits and effect tails are omitted; reset phase, noise and modulation can change the whole excerpt. Full-score compilation still runs. Default preview output: renders/<song>/preview/mix.wav. Ordinary excerpts retain full history. --stems-by part captures dry parts and complete bus returns with level/band measurements in one synthesis pass. --events-envelopes none skips recorded envelopes; --events-parts selects event tracks without changing audio. --analysis adds stems, spectrograms and per-bar RMS/peak measurements. Software only; no MIDI port required.',
+    video:
+      'mm video song.mm [--out movie.mp4] [--setup software.setup] [--from section|bar N --bars N] [--tail seconds] [--width 1280] [--height 720] [--fps 30]\nRenders audio and performance JSON, then encodes a piano-roll MP4 with matching AAC audio. Requires local FFmpeg with libx264 and AAC. No browser required. Keeps WAV, events and reports in movie.assets/. See docs/guides/RENDERING_VIDEO.md.',
     pack: 'mm pack song.mm --out pack-directory [--setup software.setup] [--tail seconds] [--cc] [--bend-range semitones]\nWrites aligned dry stems, bus returns, MIDI, draft mix and import notes.',
     export:
       'mm export song.mm [--setup studio.setup] --midi song.mid\nWithout setup: notes only, pitched channels skip 10, GM drums on 10.\nmm export song.mm --midi-dir pack/midi [--cc] [--bend-range semitones]\nHardware-free per-part MIDI uses the software performance; --setup here selects an optional software setup. Reports list representation losses.',
@@ -84,7 +86,7 @@ export function help(topic = '') {
     return {
       topic: 'index',
       topics: [...topics, ...Object.keys(midiHelp)],
-      text: `mm <command> <song.mm> [--json]\n\nCommands: ${topics.slice(0, 12).join(', ')}, render, export, pack, ports, play, panic\n\nHelp also accepts instruments, setup, language keywords, operations, fields, diagnostic codes and prelude function names.`,
+      text: `mm <command> <song.mm> [--json]\n\nCommands: ${topics.slice(0, 12).join(', ')}, render, video, export, pack, ports, play, panic\n\nHelp also accepts instruments, setup, language keywords, operations, fields, diagnostic codes and prelude function names.`,
     };
   const definitions = PRELUDE_SOURCE.split(/(?=^define )/m),
     prelude = definitions.find((d) => d.startsWith(`define ${topic}(`));

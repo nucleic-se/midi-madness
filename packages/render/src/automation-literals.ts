@@ -3,7 +3,9 @@ export function mapShapeEndpoints(
   text: string,
   lower: (literal: string) => string,
 ): string | undefined {
-  if (!/\bacross\b/.test(text)) return undefined;
+  // A bare shape (`random a..b every 1/8`, `ramp a..b`) has a one-bar period and needs the same mapping.
+  if (!/\bacross\b/.test(text) && !/^\s*(?:ramp|sine|triangle|saw|square|random)\s/.test(text))
+    return undefined;
   const scalar = String.raw`(?:[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:\/\d+(?:\.|t)?)?(?:kHz|Hz|ms|s|oct|dB|%)?|[A-G][#b]?-?\d+)`;
   const shape = new RegExp(
     String.raw`\b(ramp|sine|triangle|saw|square|random|exp|log|hold)(\s+)(${scalar})(?:\s*\.\.\s*(${scalar}))?(?=\s|[),\]]|$)`,
