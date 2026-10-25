@@ -61,7 +61,7 @@ The language includes reusable motifs and functions, exact musical time, harmony
 
 ## Examples
 
-Start with [First song](examples/first_song.mm) or [Filter automation](examples/automation.mm). Full arrangements demonstrate larger scores: [Carbonized](examples/carbonized.mm), [Flourish](examples/flourish.mm), [Hollow Bloom](examples/hollow-bloom.mm), [Copper Meadow](examples/copper-meadow.mm) and [Cobalt Trench](examples/cobalt-trench.mm).
+Start with [First song](examples/first_song.mm) or [Filter automation](examples/automation.mm). Full arrangements demonstrate larger scores: [Carbonized](examples/carbonized.mm), [Flourish](examples/flourish.mm), [Hollow Bloom](examples/hollow-bloom.mm), [Copper Meadow](examples/copper-meadow.mm), [Cobalt Trench](examples/cobalt-trench.mm) and [Starling Dusk](examples/starling-dusk.mm).
 
 The [example guide](examples/README.md) has commands for checking and rendering them. Full arrangements take longer to compile and render than the teaching scores.
 

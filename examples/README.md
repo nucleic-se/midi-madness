@@ -18,6 +18,7 @@ Start with the small teaching scores, or try a complete demo arrangement.
 | [Hollow Bloom](hollow-bloom.mm) | Layered synths, modulation and detailed event articulation |
 | [Copper Meadow](copper-meadow.mm) | Modal harmony, synth automation and rhythmic layers |
 | [Cobalt Trench](cobalt-trench.mm) | Just intonation, delay automation and dense rhythmic passages |
+| [Starling Dusk](starling-dusk.mm) | Long-form arrangement with dense parameter lanes, insert automation, freeze and reverse effect buses, and a key change |
 
 These are complete arrangements. They are larger than the
 teaching scores and take longer to compile and render. Each score is standalone
