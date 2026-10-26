@@ -14,6 +14,7 @@ Start with the small teaching scores, or try a complete demo arrangement.
 | Score | Language and renderer features |
 |---|---|
 | [Carbonized](carbonized.mm) | Synth automation, layered percussion and effect buses |
+| [Refluttered](refluttered.mm) | Ambient glitch arrangement with a soft lead onset, acid synths and automated effect buses |
 | [Flourish](flourish.mm) | Multiple acid synth voices, modulation and detailed percussion |
 | [Hollow Bloom](hollow-bloom.mm) | Layered synths, modulation and detailed event articulation |
 | [Copper Meadow](copper-meadow.mm) | Modal harmony, synth automation and rhythmic layers |
